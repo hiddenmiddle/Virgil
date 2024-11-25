@@ -186,33 +186,41 @@ function visualizeGraph(data) {
     
     let mermaidCode = `flowchart LR\n`;
     
-    // Define styles with Russian translations
+    // Define styles with Russian translations and explicit width/height
     const styles = {
-        'Процессы внимания': 'fill:#FF6B6B',
-        'Когнитивная сфера': 'fill:#4ECDC4',
-        'Аффективная сфера': 'fill:#45B7D1',
+        'Процессы\nвнимания': 'fill:#FF6B6B',
+        'Когнитивная\nсфера': 'fill:#4ECDC4',
+        'Аффективная\nсфера': 'fill:#45B7D1',
         'Самость': 'fill:#96CEB4',
         'Мотивация': 'fill:#FFEEAD',
         'Поведение': 'fill:#D4A5A5',
-        'Биофизиологический контекст': 'fill:#9FA8DA',
-        'Ситуационный контекст': 'fill:#FFD93D',
-        'Личная история': 'fill:#95A5A6',
-        'Социокультурный и экономический контекст': 'fill:#BDC3C7'
+        'Биофизиологический\nконтекст': 'fill:#9FA8DA',
+        'Ситуационный\nконтекст': 'fill:#FFD93D',
+        'Личная\nистория': 'fill:#95A5A6',
+        'Социокультурный и\nэкономический\nконтекст': 'fill:#BDC3C7'
     };
     
-    // Add legend as a subgraph without connections
+    // Add legend as a vertical subgraph
     mermaidCode += '\n    subgraph Легенда\n        direction TB\n';
     
     Object.entries(styles).forEach(([category, style], index) => {
+        // Add explicit positioning for vertical layout
         mermaidCode += `        leg${index}["${category}"]\n`;
-        mermaidCode += `        style leg${index} ${style},font-size:12px\n`;
+        mermaidCode += `        style leg${index} ${style},font-size:12px,width:120px,height:50px\n`;
+        
+        // Add invisible connections to force vertical layout
+        if (index < Object.entries(styles).length - 1) {
+            mermaidCode += `        leg${index} ~~~ leg${index + 1}\n`;
+        }
     });
     mermaidCode += '    end\n\n';
     
-    // Add nodes
+    // Add nodes with text wrapping
     data.nodes.forEach(node => {
-        mermaidCode += `    ${node.id}["${node.label}"]\n`;
-        mermaidCode += `    style ${node.id} ${styles[getCategoryInRussian(node.category)]},font-size:14px\n`;
+        // Wrap node labels to ~15-20 chars per line
+        const wrappedLabel = wrapText(node.label, 20);
+        mermaidCode += `    ${node.id}["${wrappedLabel}"]\n`;
+        mermaidCode += `    style ${node.id} ${styles[getCategoryInRussian(node.category)]},font-size:14px,width:120px,height:60px\n`;
     });
     
     // Add connections
@@ -225,10 +233,7 @@ function visualizeGraph(data) {
         mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
     
-    // Set content
-    mermaidDiv.textContent = mermaidCode;
-    
-    // Configure Mermaid with adjusted spacing
+    // Configure Mermaid with tighter spacing
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
@@ -237,14 +242,39 @@ function visualizeGraph(data) {
             useMaxWidth: true,
             htmlLabels: true,
             curve: 'basis',
-            nodeSpacing: 100,  // Increased spacing
-            rankSpacing: 120,  // Increased spacing
+            nodeSpacing: 50,  // Reduced from 80
+            rankSpacing: 70,  // Reduced from 100
             fontSize: 14,
-            diagramPadding: 20
+            diagramPadding: 8
         }
     });
 
-    // Update CSS for legend positioning
+    // Helper function to wrap text
+    function wrapText(text, maxCharsPerLine) {
+        const words = text.split(' ');
+        let lines = [];
+        let currentLine = [];
+        let currentLength = 0;
+
+        words.forEach(word => {
+            if (currentLength + word.length > maxCharsPerLine) {
+                lines.push(currentLine.join(' '));
+                currentLine = [word];
+                currentLength = word.length;
+            } else {
+                currentLine.push(word);
+                currentLength += word.length + 1;
+            }
+        });
+        
+        if (currentLine.length > 0) {
+            lines.push(currentLine.join(' '));
+        }
+
+        return lines.join('\n');
+    }
+
+    // Add CSS for better layout
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
@@ -260,9 +290,20 @@ function visualizeGraph(data) {
         .Легенда {
             transform: translateX(-50px);
         }
+        .mermaid .node rect {
+            rx: 5px;
+            ry: 5px;
+        }
+        .mermaid .node text {
+            dominant-baseline: middle;
+            text-anchor: middle;
+        }
     `;
     document.head.appendChild(style);
 
+    // Set content
+    mermaidDiv.textContent = mermaidCode;
+    
     // Render and add zoom/pan with initial scale adjustment
     mermaid.run().then(() => {
         const svg = wrapperDiv.querySelector('svg');
