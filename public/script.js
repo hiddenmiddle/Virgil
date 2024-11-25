@@ -6,6 +6,7 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 const firebaseConfig = {
     apiKey: "AIzaSyCRp3so36_GSz9wCCOkVIF1DJtWvw6GVxQ",
     authDomain: "virgil-110a0.firebaseapp.com",
+    databaseURL: "https://virgil-110a0-default-rtdb.firebaseio.com",
     projectId: "virgil-110a0",
     storageBucket: "virgil-110a0.firebasestorage.app",
     messagingSenderId: "190590960966",
@@ -71,9 +72,11 @@ sessionDropdown.addEventListener('click', (e) => {
 
 // Load existing clients
 function loadClients() {
+    console.log('Loading clients...');  // Debug log
     const dbRef = ref(database, 'conceptualizations');
     onValue(dbRef, (snapshot) => {
         const clients = snapshot.val() || {};
+        console.log('Loaded clients:', clients);  // Debug log
         
         // Clear existing options except "New"
         while (clientDropdown.children.length > 1) {
@@ -123,6 +126,12 @@ createBtn.onclick = async () => {
     }
     
     try {
+        console.log('Sending request:', {  // Debug log
+            conversation,
+            clientId: selectedClient,
+            sessionNumber: selectedSession
+        });
+
         const createFunction = httpsCallable(functions, 'create_pbt_conceptualization');
         const result = await createFunction({
             conversation,
@@ -130,16 +139,17 @@ createBtn.onclick = async () => {
             sessionNumber: selectedSession
         });
         
+        console.log('Received response:', result);  // Debug log
+
         if (result.data.success) {
             visualizeGraph(result.data.data);
-            // Refresh client list after successful creation
-            loadClients();
+            loadClients();  // Refresh client list
         } else {
-            throw new Error(result.data.error);
+            throw new Error(result.data.error || 'Unknown error');
         }
     } catch (error) {
-        console.error('Error:', error);
-        alert('Error creating conceptualization: ' + error.message);
+        console.error('Detailed error:', error);  // More detailed error logging
+        alert(`Error creating conceptualization: ${error.message}\n\nCheck console for details.`);
     }
 };
 
