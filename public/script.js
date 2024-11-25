@@ -178,7 +178,7 @@ function visualizeGraph(data) {
     container.style.backgroundColor = '#ECEFF1';
     container.innerHTML = '';
     
-    // Define styles with Russian translations first
+    // Define styles with Russian translations
     const styles = {
         'Процессы внимания': '#FF6B6B',
         'Когнитивная сфера': '#4ECDC4',
@@ -192,7 +192,7 @@ function visualizeGraph(data) {
         'Социокультурный и экономический контекст': '#BDC3C7'
     };
     
-    // Create legend container that stays fixed
+    // Create legend container
     const legendDiv = document.createElement('div');
     legendDiv.style.width = '200px';
     legendDiv.style.flexShrink = '0';
@@ -202,13 +202,6 @@ function visualizeGraph(data) {
     legendDiv.style.zIndex = '1';
     legendDiv.style.overflowY = 'auto';
     container.appendChild(legendDiv);
-
-    // Create graph container
-    const graphContainer = document.createElement('div');
-    graphContainer.style.flex = '1';
-    graphContainer.style.position = 'relative';
-    graphContainer.style.overflow = 'hidden';
-    container.appendChild(graphContainer);
 
     // Add legend items
     Object.entries(styles).forEach(([category, color]) => {
@@ -235,16 +228,40 @@ function visualizeGraph(data) {
         legendDiv.appendChild(legendItem);
     });
 
+    // Create graph container with proper sizing
+    const graphContainer = document.createElement('div');
+    graphContainer.style.flex = '1';
+    graphContainer.style.position = 'relative';
+    graphContainer.style.overflow = 'hidden';
+    graphContainer.style.backgroundColor = 'white';
+    container.appendChild(graphContainer);
+
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
     graphContainer.appendChild(mermaidDiv);
 
+    // Configure mermaid first
+    mermaid.initialize({
+        startOnLoad: false,  // Changed to false to manually control rendering
+        theme: 'default',
+        securityLevel: 'loose',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis',
+            nodeSpacing: 30,
+            rankSpacing: 50,
+            diagramPadding: 8
+        }
+    });
+
+    // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes with single rectangle syntax
+    // Add nodes
     data.nodes.forEach(node => {
         const wrappedLabel = wrapText(node.label, 15);
-        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`; // Removed extra brackets
+        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`;
         mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
     });
     
@@ -258,14 +275,16 @@ function visualizeGraph(data) {
         mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
 
+    // Set content and render
     mermaidDiv.textContent = mermaidCode;
-
+    
     // Add CSS
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
             width: 100%;
             height: 100%;
+            background-color: white;
         }
         .mermaid svg {
             width: 100% !important;
@@ -282,20 +301,18 @@ function visualizeGraph(data) {
             text-anchor: middle;
             fill: black !important;
         }
-        #graph-container {
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-            border-radius: 3px;
-            margin: 16px;
-        }
     `;
     document.head.appendChild(style);
 
-    // Render and add zoom/pan functionality
+    // Render mermaid
     mermaid.run().then(() => {
         const svg = graphContainer.querySelector('svg');
-        if (!svg) return;
+        if (!svg) {
+            console.error('SVG not found after mermaid rendering');
+            return;
+        }
 
-        // Create a wrapper for the SVG to handle transformations
+        // Create transform wrapper
         const svgWrapper = document.createElement('div');
         svgWrapper.style.position = 'absolute';
         svgWrapper.style.width = '100%';
@@ -317,6 +334,11 @@ function visualizeGraph(data) {
         const scaleY = containerHeight / (svgBBox.height + 100);
         zoom = Math.min(scaleX, scaleY, 1);
 
+        function updateTransform() {
+            svgWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
+        }
+
+        // Add event listeners
         graphContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -349,12 +371,10 @@ function visualizeGraph(data) {
             e.preventDefault();
         });
 
-        function updateTransform() {
-            svgWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
-        }
-
         // Initial transform
         updateTransform();
+    }).catch(error => {
+        console.error('Mermaid rendering error:', error);
     });
 }
 
