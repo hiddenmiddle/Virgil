@@ -9,15 +9,15 @@ import os
 # Initialize Firebase Admin
 firebase_admin.initialize_app()
 
-# Initialize OpenAI client
-openai_client = OpenAI(
-    api_key=os.environ.get('OPENAI_API_KEY')
-)
-
 @functions.https_fn.on_call()
 def create_pbt_conceptualization(req: functions.https_fn.Request) -> functions.https_fn.Response:
     """Create PBT conceptualization and store in Firebase."""
     try:
+        # Initialize OpenAI client inside the function
+        openai_client = OpenAI(
+            api_key=os.environ.get('OPENAI_API_KEY')
+        )
+
         # Get data from request
         data = req.data
         conversation = data.get('conversation')

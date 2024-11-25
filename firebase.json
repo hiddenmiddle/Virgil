@@ -22,9 +22,11 @@
         "venv",
         ".git",
         "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
+        "firebase-debug.*.log"
+      ],
+      "environment_variables": {
+        "OPENAI_API_KEY": "${param:openai.apikey}"
+      }
     }
   ]
 }
