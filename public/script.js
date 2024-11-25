@@ -246,10 +246,10 @@ function visualizeGraph(data) {
     // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes
+    // Add nodes with fixed rectangle syntax and better text wrapping
     data.nodes.forEach(node => {
-        const wrappedLabel = wrapText(node.label, 15);
-        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`;
+        const wrappedLabel = wrapText(node.label, 12); // Reduced character count for better wrapping
+        mermaidCode += `    ${node.id}["${wrappedLabel}"]\n`; // Single rectangle syntax
         mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
     });
     
@@ -375,7 +375,7 @@ function visualizeGraph(data) {
     });
 }
 
-// Helper function for text wrapping
+// Improved text wrapping function
 function wrapText(text, maxCharsPerLine) {
     const words = text.split(' ');
     let lines = [];
@@ -383,16 +383,26 @@ function wrapText(text, maxCharsPerLine) {
     let currentLength = 0;
 
     words.forEach(word => {
+        // If this word would make the line too long
         if (currentLength + word.length > maxCharsPerLine) {
-            lines.push(currentLine.join(' '));
-            currentLine = [word];
-            currentLength = word.length;
+            // If the current line has words, add it to lines
+            if (currentLine.length > 0) {
+                lines.push(currentLine.join(' '));
+                currentLine = [word];
+                currentLength = word.length;
+            } else {
+                // If the word itself is longer than maxCharsPerLine
+                lines.push(word);
+                currentLine = [];
+                currentLength = 0;
+            }
         } else {
             currentLine.push(word);
-            currentLength += word.length + 1;
+            currentLength += word.length + (currentLine.length > 0 ? 1 : 0);
         }
     });
     
+    // Add any remaining line
     if (currentLine.length > 0) {
         lines.push(currentLine.join(' '));
     }
