@@ -22,7 +22,52 @@ const functions = getFunctions(app);
 const textarea = document.querySelector('textarea');
 const clientDropdown = document.querySelector('.dropdown:nth-child(1) .dropdown-content');
 const sessionDropdown = document.querySelector('.dropdown:nth-child(2) .dropdown-content');
+const clientButton = document.querySelector('.dropdown:nth-child(1) .dropbtn');
+const sessionButton = document.querySelector('.dropdown:nth-child(2) .dropbtn');
 const createBtn = document.getElementById('createBtn');
+
+let selectedClient = null;
+let selectedSession = null;
+
+// Handle client selection
+clientDropdown.addEventListener('click', async (e) => {
+    if (e.target.tagName === 'A') {
+        if (e.target.textContent === 'New') {
+            const newClient = prompt('Enter new client ID:');
+            if (newClient) {
+                selectedClient = newClient;
+                clientButton.textContent = newClient;
+                // Clear and reset session dropdown
+                sessionButton.textContent = 'Session';
+                while (sessionDropdown.children.length > 1) {
+                    sessionDropdown.removeChild(sessionDropdown.lastChild);
+                }
+                selectedSession = '1'; // Default to session 1 for new client
+                sessionButton.textContent = 'Session 1';
+            }
+        } else {
+            selectedClient = e.target.textContent;
+            clientButton.textContent = e.target.textContent;
+            loadSessions(selectedClient);
+        }
+    }
+});
+
+// Handle session selection
+sessionDropdown.addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') {
+        if (e.target.textContent === 'New') {
+            const lastSession = Array.from(sessionDropdown.children)
+                .filter(a => a.textContent !== 'New')
+                .length;
+            selectedSession = (lastSession + 1).toString();
+            sessionButton.textContent = `Session ${selectedSession}`;
+        } else {
+            sessionButton.textContent = e.target.textContent;
+            selectedSession = e.target.textContent.split(' ')[1];
+        }
+    }
+});
 
 // Load existing clients
 function loadClients() {
@@ -71,11 +116,9 @@ function loadSessions(clientId) {
 // Create new conceptualization
 createBtn.onclick = async () => {
     const conversation = textarea.value;
-    const clientId = document.querySelector('.dropbtn').textContent;
-    const sessionNumber = document.querySelector('.dropbtn:nth-child(2)').textContent.split(' ')[1];
     
-    if (!conversation || clientId === 'Client' || !sessionNumber) {
-        alert('Please fill in all fields');
+    if (!conversation || !selectedClient || !selectedSession) {
+        alert('Please fill in all fields (conversation, client, and session)');
         return;
     }
     
@@ -83,18 +126,20 @@ createBtn.onclick = async () => {
         const createFunction = httpsCallable(functions, 'create_pbt_conceptualization');
         const result = await createFunction({
             conversation,
-            clientId,
-            sessionNumber
+            clientId: selectedClient,
+            sessionNumber: selectedSession
         });
         
         if (result.data.success) {
             visualizeGraph(result.data.data);
+            // Refresh client list after successful creation
+            loadClients();
         } else {
             throw new Error(result.data.error);
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('Error creating conceptualization');
+        alert('Error creating conceptualization: ' + error.message);
     }
 };
 
