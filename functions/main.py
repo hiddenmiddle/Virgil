@@ -41,11 +41,9 @@ def create_pbt_conceptualization(req: https_fn.Request):
             # Create OpenAI request
             response = openai_client.chat.completions.create(
                 model="gpt-4o",
+                response_format={ "type": "json_object" },
                 messages=[
-                    {
-                        "role": "system",
-                        "content": """You are an expert in process-based therapy analysis. 
-                        Analyze the conversation and identify elements that fit into these categories:
+                    {"role": "system", "content": """You are an expert in process-based therapy analysis. Analyze the conversation and identify elements that fit into these categories:
                         - Attentional processes
                         - Cognitive sphere
                         - Affective sphere
@@ -55,38 +53,42 @@ def create_pbt_conceptualization(req: https_fn.Request):
                         - Biophysiological context
                         - Situational context
                         - Personal history
-                        - Broader socio-cultural and economical context"""
-                    },
-                    {
-                        "role": "user",
-                        "content": conversation
-                    }
-                ],
-                response_format={ "type": "json_object" }  # Simplified format
+                        - Broader socio-cultural and economical context
+                        
+                        For each identified element, create a node. Then identify connections between these nodes, 
+                        including the strength of connection (1-5, where 5 is strongest) and whether it's bidirectional.
+                        Each node should have a unique ID and be categorized into one of the above categories.
+                        
+                        Return the analysis in this JSON structure:
+                        {
+                            "nodes": [
+                                {
+                                    "id": "unique_identifier",
+                                    "label": "descriptive text of the element",
+                                    "category": "one of the categories listed above"
+                                }
+                            ],
+                            "edges": [
+                                {
+                                    "from": "source_node_id",
+                                    "to": "target_node_id",
+                                    "strength": "number 1-5",
+                                    "bidirectional": true/false
+                                }
+                            ]
+                        }"""},
+                    {"role": "user", "content": f"Please analyze this therapy conversation and provide a detailed process-based therapy analysis in the specified JSON format: {conversation}"}
+                ]
             )
             print("OpenAI response received")
+            
+            # Extract the response content
+            analysis = response.choices[0].message.content
+            return {"success": True, "analysis": analysis}
+            
         except Exception as e:
             print(f"OpenAI request error: {str(e)}")
             return {"success": False, "error": str(e)}
-
-        # Parse the response
-        analysis_result = json.loads(response.choices[0].message.content)
-        print("Response parsed successfully")
-
-        try:
-            # Store in Firebase Realtime Database
-            ref = db.reference(f'conceptualizations/{client_id}/sessions/{session_number}')
-            ref.set({
-                'timestamp': datetime.now().isoformat(),
-                'modality': 'PBT',
-                'analysis': analysis_result
-            })
-            print("Data written to database")
-        except Exception as e:
-            print(f"Database write error: {str(e)}")
-            return {"success": False, "error": str(e)}
-
-        return {"success": True, "data": analysis_result}
 
     except Exception as e:
         print(f"Function error: {str(e)}")
