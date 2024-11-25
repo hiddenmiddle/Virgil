@@ -171,19 +171,15 @@ createBtn.onclick = async () => {
 // Visualize graph using Mermaid.js
 function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
-    
-    // Clear existing content
     container.innerHTML = '';
     
-    // Create mermaid div
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
     
-    // Convert data to mermaid flowchart syntax
+    // Start flowchart definition
     let mermaidCode = 'flowchart LR\n';
     
-    // Add style definitions for categories
-    mermaidCode += `%% Style definitions\n`;
+    // Define styles for categories
     const styles = {
         'Attentional processes': 'fill:#FF6B6B',
         'Cognitive sphere': 'fill:#4ECDC4',
@@ -197,33 +193,39 @@ function visualizeGraph(data) {
         'Broader socio-cultural and economical context': 'fill:#BDC3C7'
     };
     
-    // Add nodes with their styles
+    // Add nodes
     data.nodes.forEach(node => {
-        mermaidCode += `    ${node.id}["${node.label}"]\n`;
-        mermaidCode += `    style ${node.id} ${styles[node.category]},border-radius:5px\n`;
+        mermaidCode += `    ${node.id}[${node.label}]\n`;
+        mermaidCode += `    style ${node.id} ${styles[node.category]}\n`;
     });
     
-    // Add connections
+    // Add connections with correct Mermaid syntax
     data.links.forEach(link => {
-        const lineStyle = link.importance ? ` thickness=${link.importance}` : '';
-        const arrow = link.bidirectional ? '<-->' : '-->';
-        mermaidCode += `    ${link.source} ${arrow}${lineStyle} ${link.target}\n`;
+        // Mermaid uses different arrow syntax and doesn't support thickness directly
+        // We'll use link styles instead
+        const linkId = `${link.source}_${link.target}`;
+        if (link.bidirectional) {
+            mermaidCode += `    ${link.source} <--> ${link.target}\n`;
+        } else {
+            mermaidCode += `    ${link.source} --> ${link.target}\n`;
+        }
+        // Add link style based on importance
+        mermaidCode += `    linkStyle ${linkId} stroke-width:${link.importance}px\n`;
     });
     
-    // Add legend as subgraph
-    mermaidCode += '\n    subgraph Legend\n';
+    // Add legend
+    mermaidCode += '    subgraph Legend\n';
     Object.entries(styles).forEach(([category, style], index) => {
-        const legendId = `legend${index}`;
-        mermaidCode += `        ${legendId}["${category}"]\n`;
-        mermaidCode += `        style ${legendId} ${style}\n`;
+        mermaidCode += `        leg${index}[${category}]\n`;
+        mermaidCode += `        style leg${index} ${style}\n`;
     });
     mermaidCode += '    end\n';
     
-    // Set the mermaid content
+    // Set content and initialize
     mermaidDiv.textContent = mermaidCode;
     container.appendChild(mermaidDiv);
     
-    // Initialize mermaid
+    // Configure and initialize Mermaid
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
@@ -236,7 +238,7 @@ function visualizeGraph(data) {
         }
     });
     
-    // Render the diagram
+    // Render
     mermaid.run();
 }
 
