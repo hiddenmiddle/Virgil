@@ -126,30 +126,49 @@ createBtn.onclick = async () => {
     }
     
     try {
-        console.log('Sending request:', {  // Debug log
-            conversation,
-            clientId: selectedClient,
-            sessionNumber: selectedSession
-        });
-
+        // First, create a reference to monitor the status
+        const statusRef = ref(database, `conceptualizations/${selectedClient}/sessions/${selectedSession}`);
+        
+        // Send request to create analysis
         const createFunction = httpsCallable(functions, 'create_pbt_conceptualization');
-        const result = await createFunction({
+        await createFunction({
             conversation,
             clientId: selectedClient,
             sessionNumber: selectedSession
         });
         
-        console.log('Received response:', result);  // Debug log
-
-        if (result.data.success) {
-            visualizeGraph(result.data.data);
-            loadClients();  // Refresh client list
-        } else {
-            throw new Error(result.data.error || 'Unknown error');
-        }
+        // Listen for changes to the analysis status
+        onValue(statusRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+            
+            switch(data.status) {
+                case 'processing':
+                    // Show loading indicator
+                    document.getElementById('graph-container').innerHTML = 'Processing...';
+                    break;
+                    
+                case 'completed':
+                    // Visualize the graph from database data
+                    visualizeGraph({
+                        nodes: data.nodes,
+                        links: data.edges.map(edge => ({
+                            source: edge.from,
+                            target: edge.to,
+                            importance: edge.strength
+                        }))
+                    });
+                    break;
+                    
+                case 'error':
+                    alert(`Error in analysis: ${data.error_message}`);
+                    break;
+            }
+        });
+        
     } catch (error) {
-        console.error('Detailed error:', error);  // More detailed error logging
-        alert(`Error creating conceptualization: ${error.message}\n\nCheck console for details.`);
+        console.error('Detailed error:', error);
+        alert(`Error creating conceptualization: ${error.message}`);
     }
 };
 
@@ -254,6 +273,24 @@ function wrap(text, width) {
                 line = [word];
                 tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
             }
+        }
+    });
+}
+
+// Update loadGraph function to load from database
+function loadGraph(clientId, sessionNum) {
+    const graphRef = ref(database, `conceptualizations/${clientId}/sessions/${sessionNum}`);
+    onValue(graphRef, (snapshot) => {
+        const data = snapshot.val();
+        if (data && data.status === 'completed') {
+            visualizeGraph({
+                nodes: data.nodes,
+                links: data.edges.map(edge => ({
+                    source: edge.from,
+                    target: edge.to,
+                    importance: edge.strength
+                }))
+            });
         }
     });
 }

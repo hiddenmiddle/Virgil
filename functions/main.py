@@ -27,18 +27,25 @@ def create_pbt_conceptualization(req: https_fn.Request):
         if not all([conversation, client_id, session_number]):
             return {"success": False, "error": "Missing required parameters"}
 
+        # First, create/update the client and session structure
         try:
-            # Initialize OpenAI client with the parameter value
+            ref = db.reference(f'conceptualizations/{client_id}/sessions/{session_number}')
+            ref.set({
+                'timestamp': datetime.now().isoformat(),
+                'status': 'processing'
+            })
+        except Exception as e:
+            print(f"Database initialization error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+        try:
+            # Initialize OpenAI client
             openai_client = OpenAI(
                 api_key=OPENAI_API_KEY.value
             )
             print("OpenAI client initialized")
-        except Exception as e:
-            print(f"OpenAI initialization error: {str(e)}")
-            return {"success": False, "error": str(e)}
-
-        try:
-            # Create OpenAI request
+            
+            # Get OpenAI analysis
             response = openai_client.chat.completions.create(
                 model="gpt-4o",
                 response_format={ "type": "json_object" },
@@ -80,14 +87,23 @@ def create_pbt_conceptualization(req: https_fn.Request):
                     {"role": "user", "content": f"Please analyze this therapy conversation and provide a detailed process-based therapy analysis in the specified JSON format: {conversation}"}
                 ]
             )
-            print("OpenAI response received")
             
-            # Extract the response content
-            analysis = response.choices[0].message.content
-            return {"success": True, "analysis": analysis}
+            # Parse the response
+            analysis = json.loads(response.choices[0].message.content)
+            
+            # Store the analysis in Firebase
+            ref.update({
+                'status': 'completed',
+                'nodes': analysis['nodes'],
+                'edges': analysis['edges'],
+                'raw_conversation': conversation
+            })
+            
+            return {"success": True, "message": "Analysis stored successfully"}
             
         except Exception as e:
-            print(f"OpenAI request error: {str(e)}")
+            ref.update({'status': 'error', 'error_message': str(e)})
+            print(f"OpenAI/Storage error: {str(e)}")
             return {"success": False, "error": str(e)}
 
     except Exception as e:
