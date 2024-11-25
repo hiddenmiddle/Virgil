@@ -171,45 +171,32 @@ createBtn.onclick = async () => {
 // Visualize graph using Mermaid.js
 function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
+    container.style.position = 'relative';
+    container.style.overflow = 'hidden';
+    container.style.height = '80vh';
+    container.style.display = 'flex';
+    container.style.backgroundColor = '#ECEFF1'; // Match the body background
     container.innerHTML = '';
     
-    // Create wrapper with proper styling
-    const wrapperDiv = document.createElement('div');
-    wrapperDiv.style.width = '100%';
-    wrapperDiv.style.height = '80vh';
-    wrapperDiv.style.display = 'flex';
-    wrapperDiv.style.position = 'relative';
-    wrapperDiv.style.border = '1px solid #ddd';
-    wrapperDiv.style.overflow = 'hidden';
-    container.appendChild(wrapperDiv);
-
-    // Create and style legend container
+    // Create legend container that stays fixed
     const legendDiv = document.createElement('div');
     legendDiv.style.width = '200px';
+    legendDiv.style.flexShrink = '0';
     legendDiv.style.padding = '20px';
-    legendDiv.style.display = 'flex';
-    legendDiv.style.flexDirection = 'column';
-    legendDiv.style.gap = '10px';
-    legendDiv.style.borderRight = '1px solid #ddd';
+    legendDiv.style.backgroundColor = 'white';
+    legendDiv.style.borderRight = '1px solid rgba(0,0,0,0.12)';
+    legendDiv.style.zIndex = '1';
     legendDiv.style.overflowY = 'auto';
-    legendDiv.style.backgroundColor = '#fff';
-    wrapperDiv.appendChild(legendDiv);
+    container.appendChild(legendDiv);
 
-    // Define styles with Russian translations
-    const styles = {
-        'Процессы внимания': '#FF6B6B',
-        'Когнитивная сфера': '#4ECDC4',
-        'Аффективная сфера': '#45B7D1',
-        'Самость': '#96CEB4',
-        'Мотивация': '#FFEEAD',
-        'Поведение': '#D4A5A5',
-        'Биофизиологический контекст': '#9FA8DA',
-        'Ситуационный контекст': '#FFD93D',
-        'Личная история': '#95A5A6',
-        'Социокультурный и экономический контекст': '#BDC3C7'
-    };
+    // Create graph container
+    const graphContainer = document.createElement('div');
+    graphContainer.style.flex = '1';
+    graphContainer.style.position = 'relative';
+    graphContainer.style.overflow = 'hidden';
+    container.appendChild(graphContainer);
 
-    // Create legend items
+    // Add legend items
     Object.entries(styles).forEach(([category, color]) => {
         const legendItem = document.createElement('div');
         legendItem.style.display = 'flex';
@@ -223,10 +210,9 @@ function visualizeGraph(data) {
         colorBox.style.backgroundColor = color;
         colorBox.style.borderRadius = '4px';
         colorBox.style.flexShrink = '0';
-        colorBox.style.marginTop = '2px';
 
         const label = document.createElement('div');
-        label.style.fontSize = '12px';
+        label.style.fontSize = '14px';
         label.style.lineHeight = '1.3';
         label.textContent = category;
 
@@ -235,23 +221,16 @@ function visualizeGraph(data) {
         legendDiv.appendChild(legendItem);
     });
 
-    // Create graph container with proper styling
-    const graphContainer = document.createElement('div');
-    graphContainer.style.flex = '1';
-    graphContainer.style.position = 'relative';
-    graphContainer.style.overflow = 'hidden';
-    wrapperDiv.appendChild(graphContainer);
-
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
     graphContainer.appendChild(mermaidDiv);
 
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes
+    // Add nodes with single rectangle syntax
     data.nodes.forEach(node => {
         const wrappedLabel = wrapText(node.label, 15);
-        mermaidCode += `    ${node.id}[["${wrappedLabel}"]]\n`;
+        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`; // Removed extra brackets
         mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
     });
     
@@ -267,33 +246,16 @@ function visualizeGraph(data) {
 
     mermaidDiv.textContent = mermaidCode;
 
-    // Configure mermaid
-    mermaid.initialize({
-        startOnLoad: true,
-        theme: 'default',
-        securityLevel: 'loose',
-        flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true,
-            curve: 'basis',
-            nodeSpacing: 30,
-            rankSpacing: 50,
-            diagramPadding: 8
-        }
-    });
-
     // Add CSS
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
             width: 100%;
             height: 100%;
-            cursor: move;
         }
         .mermaid svg {
             width: 100% !important;
             height: 100% !important;
-            transform-origin: 50% 50%;
         }
         .mermaid .node rect {
             rx: 5px;
@@ -306,6 +268,11 @@ function visualizeGraph(data) {
             text-anchor: middle;
             fill: black !important;
         }
+        #graph-container {
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            border-radius: 3px;
+            margin: 16px;
+        }
     `;
     document.head.appendChild(style);
 
@@ -314,12 +281,21 @@ function visualizeGraph(data) {
         const svg = graphContainer.querySelector('svg');
         if (!svg) return;
 
+        // Create a wrapper for the SVG to handle transformations
+        const svgWrapper = document.createElement('div');
+        svgWrapper.style.position = 'absolute';
+        svgWrapper.style.width = '100%';
+        svgWrapper.style.height = '100%';
+        svgWrapper.style.overflow = 'hidden';
+        svg.parentNode.insertBefore(svgWrapper, svg);
+        svgWrapper.appendChild(svg);
+
         let zoom = 1;
         const zoomSpeed = 0.1;
         let isDragging = false;
         let startX, startY, translateX = 0, translateY = 0;
 
-        // Calculate initial scale to fit content
+        // Calculate initial scale
         const svgBBox = svg.getBBox();
         const containerWidth = graphContainer.clientWidth;
         const containerHeight = graphContainer.clientHeight;
@@ -327,7 +303,6 @@ function visualizeGraph(data) {
         const scaleY = containerHeight / (svgBBox.height + 100);
         zoom = Math.min(scaleX, scaleY, 1);
 
-        // Zoom handler
         graphContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -335,7 +310,6 @@ function visualizeGraph(data) {
             updateTransform();
         });
 
-        // Pan handlers
         graphContainer.addEventListener('mousedown', (e) => {
             if (e.button === 2) {
                 e.preventDefault();
@@ -353,7 +327,7 @@ function visualizeGraph(data) {
             }
         });
 
-        graphContainer.addEventListener('mouseup', () => {
+        window.addEventListener('mouseup', () => {
             isDragging = false;
         });
 
@@ -362,7 +336,7 @@ function visualizeGraph(data) {
         });
 
         function updateTransform() {
-            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
+            svgWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
         }
 
         // Initial transform
