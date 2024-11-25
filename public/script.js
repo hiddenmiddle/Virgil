@@ -170,12 +170,15 @@ createBtn.onclick = async () => {
 
 // Visualize graph using Mermaid.js
 function visualizeGraph(data) {
+    // Clear and set up main container
     const container = document.getElementById('graph-container');
     container.style.position = 'relative';
-    container.style.overflow = 'hidden';
-    container.style.height = '80vh';
     container.style.display = 'flex';
-    container.style.backgroundColor = '#ECEFF1';
+    container.style.height = 'calc(100vh - 200px)'; // Adjust based on your header height
+    container.style.margin = '20px';
+    container.style.backgroundColor = 'white';
+    container.style.borderRadius = '8px';
+    container.style.boxShadow = '0 1px 3px rgba(0,0,0,0.12)';
     container.innerHTML = '';
     
     // Define styles with Russian translations
@@ -191,15 +194,12 @@ function visualizeGraph(data) {
         'Личная история': '#95A5A6',
         'Социокультурный и экономический контекст': '#BDC3C7'
     };
-    
-    // Create legend container
+
+    // Create and style legend container
     const legendDiv = document.createElement('div');
     legendDiv.style.width = '200px';
-    legendDiv.style.flexShrink = '0';
     legendDiv.style.padding = '20px';
-    legendDiv.style.backgroundColor = 'white';
-    legendDiv.style.borderRight = '1px solid rgba(0,0,0,0.12)';
-    legendDiv.style.zIndex = '1';
+    legendDiv.style.borderRight = '1px solid #ddd';
     legendDiv.style.overflowY = 'auto';
     container.appendChild(legendDiv);
 
@@ -228,32 +228,20 @@ function visualizeGraph(data) {
         legendDiv.appendChild(legendItem);
     });
 
-    // Create graph container with proper sizing
+    // Create graph container
     const graphContainer = document.createElement('div');
     graphContainer.style.flex = '1';
     graphContainer.style.position = 'relative';
-    graphContainer.style.overflow = 'hidden';
-    graphContainer.style.backgroundColor = 'white';
+    graphContainer.style.minHeight = '500px'; // Ensure minimum height
+    graphContainer.style.padding = '20px';
     container.appendChild(graphContainer);
 
+    // Create mermaid container
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
+    mermaidDiv.style.width = '100%';
+    mermaidDiv.style.height = '100%';
     graphContainer.appendChild(mermaidDiv);
-
-    // Configure mermaid first
-    mermaid.initialize({
-        startOnLoad: false,  // Changed to false to manually control rendering
-        theme: 'default',
-        securityLevel: 'loose',
-        flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true,
-            curve: 'basis',
-            nodeSpacing: 30,
-            rankSpacing: 50,
-            diagramPadding: 8
-        }
-    });
 
     // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
@@ -275,20 +263,35 @@ function visualizeGraph(data) {
         mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
 
-    // Set content and render
     mermaidDiv.textContent = mermaidCode;
-    
+
+    // Configure mermaid
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis',
+            nodeSpacing: 30,
+            rankSpacing: 50,
+            diagramPadding: 8
+        }
+    });
+
     // Add CSS
     const style = document.createElement('style');
     style.textContent = `
+        #graph-container {
+            background-color: white;
+        }
         .mermaid {
-            width: 100%;
-            height: 100%;
             background-color: white;
         }
         .mermaid svg {
-            width: 100% !important;
-            height: 100% !important;
+            max-width: 100%;
+            height: auto;
         }
         .mermaid .node rect {
             rx: 5px;
@@ -304,41 +307,25 @@ function visualizeGraph(data) {
     `;
     document.head.appendChild(style);
 
-    // Render mermaid
+    // Render and add zoom/pan functionality
     mermaid.run().then(() => {
+        console.log('Mermaid rendered successfully');
         const svg = graphContainer.querySelector('svg');
         if (!svg) {
             console.error('SVG not found after mermaid rendering');
             return;
         }
 
-        // Create transform wrapper
-        const svgWrapper = document.createElement('div');
-        svgWrapper.style.position = 'absolute';
-        svgWrapper.style.width = '100%';
-        svgWrapper.style.height = '100%';
-        svgWrapper.style.overflow = 'hidden';
-        svg.parentNode.insertBefore(svgWrapper, svg);
-        svgWrapper.appendChild(svg);
+        // Set initial SVG size
+        svg.style.width = '100%';
+        svg.style.height = '100%';
 
+        // Add zoom and pan functionality
         let zoom = 1;
         const zoomSpeed = 0.1;
         let isDragging = false;
         let startX, startY, translateX = 0, translateY = 0;
 
-        // Calculate initial scale
-        const svgBBox = svg.getBBox();
-        const containerWidth = graphContainer.clientWidth;
-        const containerHeight = graphContainer.clientHeight;
-        const scaleX = containerWidth / (svgBBox.width + 100);
-        const scaleY = containerHeight / (svgBBox.height + 100);
-        zoom = Math.min(scaleX, scaleY, 1);
-
-        function updateTransform() {
-            svgWrapper.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
-        }
-
-        // Add event listeners
         graphContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -371,7 +358,17 @@ function visualizeGraph(data) {
             e.preventDefault();
         });
 
-        // Initial transform
+        function updateTransform() {
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
+        }
+
+        // Calculate and set initial scale
+        const svgBBox = svg.getBBox();
+        const containerWidth = graphContainer.clientWidth;
+        const containerHeight = graphContainer.clientHeight;
+        const scaleX = containerWidth / (svgBBox.width + 100);
+        const scaleY = containerHeight / (svgBBox.height + 100);
+        zoom = Math.min(scaleX, scaleY, 1);
         updateTransform();
     }).catch(error => {
         console.error('Mermaid rendering error:', error);
