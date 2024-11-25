@@ -1,4 +1,4 @@
-from firebase_functions import https_fn, options
+from firebase_functions import https_fn
 from firebase_admin import initialize_app, db
 from openai import OpenAI
 import json
@@ -12,6 +12,9 @@ initialize_app()
 def create_pbt_conceptualization(req: https_fn.Request):
     """Create PBT conceptualization and store in Firebase."""
     try:
+        # Debug: Print all environment variables
+        print("Environment variables:", dict(os.environ))
+        
         # Get data from request
         data = req.data
         conversation = data.get('conversation')
@@ -25,6 +28,9 @@ def create_pbt_conceptualization(req: https_fn.Request):
 
         try:
             # Get API key from environment
+            api_key = os.environ.get('OPENAI_API_KEY')
+            print(f"Found API key: {'Yes' if api_key else 'No'}")  # Debug log (don't print the actual key!)
+            
             openai_client = OpenAI(
                 api_key=options.get('openai.apikey')
             )
