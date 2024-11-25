@@ -1,43 +1,40 @@
 from firebase_functions import https_fn
+from firebase_functions.params import StringParam
 from firebase_admin import initialize_app, db
 from openai import OpenAI
 import json
 from datetime import datetime
-import os
 
 # Initialize Firebase Admin
 initialize_app()
+
+# Define the OpenAI API key parameter
+OPENAI_API_KEY = StringParam("OPENAI_API_KEY", 
+    description="OpenAI API key for making completions requests")
 
 @https_fn.on_call()
 def create_pbt_conceptualization(req: https_fn.Request):
     """Create PBT conceptualization and store in Firebase."""
     try:
-        # Debug: Print all environment variables
-        print("All environment variables:", dict(os.environ))
-        
         # Get data from request
         data = req.data
         conversation = data.get('conversation')
         client_id = data.get('clientId')
         session_number = data.get('sessionNumber')
 
-        print(f"Received request: client={client_id}, session={session_number}")  # Debug log
+        print(f"Received request: client={client_id}, session={session_number}")
 
         if not all([conversation, client_id, session_number]):
             return {"success": False, "error": "Missing required parameters"}
 
         try:
-            # Get API key from environment
-            api_key = os.environ.get('openai.apikey')
-            if not api_key:
-                raise ValueError("openai.apikey environment variable is not set")
-            
+            # Initialize OpenAI client with the parameter value
             openai_client = OpenAI(
-                api_key=api_key
+                api_key=OPENAI_API_KEY.value()
             )
-            print("OpenAI client initialized")  # Debug log
+            print("OpenAI client initialized")
         except Exception as e:
-            print(f"OpenAI initialization error: {str(e)}")  # Debug log
+            print(f"OpenAI initialization error: {str(e)}")
             return {"success": False, "error": str(e)}
 
         try:
@@ -67,14 +64,14 @@ def create_pbt_conceptualization(req: https_fn.Request):
                 ],
                 response_format={ "type": "json_object" }  # Simplified format
             )
-            print("OpenAI response received")  # Debug log
+            print("OpenAI response received")
         except Exception as e:
-            print(f"OpenAI request error: {str(e)}")  # Debug log
+            print(f"OpenAI request error: {str(e)}")
             return {"success": False, "error": str(e)}
 
         # Parse the response
         analysis_result = json.loads(response.choices[0].message.content)
-        print("Response parsed successfully")  # Debug log
+        print("Response parsed successfully")
 
         try:
             # Store in Firebase Realtime Database
@@ -84,13 +81,13 @@ def create_pbt_conceptualization(req: https_fn.Request):
                 'modality': 'PBT',
                 'analysis': analysis_result
             })
-            print("Data written to database")  # Debug log
+            print("Data written to database")
         except Exception as e:
-            print(f"Database write error: {str(e)}")  # Debug log
+            print(f"Database write error: {str(e)}")
             return {"success": False, "error": str(e)}
 
         return {"success": True, "data": analysis_result}
 
     except Exception as e:
-        print(f"Function error: {str(e)}")  # Debug log
+        print(f"Function error: {str(e)}")
         return {"success": False, "error": str(e)}
