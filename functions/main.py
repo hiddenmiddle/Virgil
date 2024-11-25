@@ -62,7 +62,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
                         - Personal history
                         - Broader socio-cultural and economical context
                         
-                        For each identified element, create a node. If the prompt is not in English, use the language of the prompt. Then identify connections between these nodes, 
+                        For each identified element, create a node. Then identify connections between these nodes, 
                         including the strength of connection (1-5, where 5 is strongest) and whether it's bidirectional.
                         Each node should have a unique ID and be categorized into one of the above categories. You should optimize the nuber of nodes and edges for clarity of conceptualization but also strive not to lose any important details.
                         

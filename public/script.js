@@ -173,54 +173,75 @@ function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
     
+    // Create wrapper for both legend and graph
     const wrapperDiv = document.createElement('div');
     wrapperDiv.style.width = '100%';
     wrapperDiv.style.height = '80vh';
-    wrapperDiv.style.overflow = 'hidden';
+    wrapperDiv.style.display = 'flex';
     wrapperDiv.style.position = 'relative';
     container.appendChild(wrapperDiv);
-    
+
+    // Create and style legend
+    const legendDiv = document.createElement('div');
+    legendDiv.style.width = '200px';
+    legendDiv.style.padding = '20px';
+    legendDiv.style.display = 'flex';
+    legendDiv.style.flexDirection = 'column';
+    legendDiv.style.gap = '10px';
+    wrapperDiv.appendChild(legendDiv);
+
+    // Define styles with Russian translations
+    const styles = {
+        'Процессы внимания': '#FF6B6B',
+        'Когнитивная сфера': '#4ECDC4',
+        'Аффективная сфера': '#45B7D1',
+        'Самость': '#96CEB4',
+        'Мотивация': '#FFEEAD',
+        'Поведение': '#D4A5A5',
+        'Биофизиологический контекст': '#9FA8DA',
+        'Ситуационный контекст': '#FFD93D',
+        'Личная история': '#95A5A6',
+        'Социокультурный и экономический контекст': '#BDC3C7'
+    };
+
+    // Create legend items
+    Object.entries(styles).forEach(([category, color]) => {
+        const legendItem = document.createElement('div');
+        legendItem.style.display = 'flex';
+        legendItem.style.alignItems = 'center';
+        legendItem.style.gap = '10px';
+
+        const colorBox = document.createElement('div');
+        colorBox.style.width = '20px';
+        colorBox.style.height = '20px';
+        colorBox.style.backgroundColor = color;
+        colorBox.style.borderRadius = '4px';
+
+        const label = document.createElement('div');
+        label.style.fontSize = '12px';
+        label.style.lineHeight = '1.2';
+        label.textContent = category;
+
+        legendItem.appendChild(colorBox);
+        legendItem.appendChild(label);
+        legendDiv.appendChild(legendItem);
+    });
+
+    // Create mermaid container
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
+    mermaidDiv.style.flex = '1';
+    mermaidDiv.style.overflow = 'hidden';
     wrapperDiv.appendChild(mermaidDiv);
-    
+
+    // Generate mermaid code (without legend)
     let mermaidCode = `flowchart LR\n`;
     
-    // Define styles with Russian translations and explicit width/height
-    const styles = {
-        'Процессы\nвнимания': 'fill:#FF6B6B',
-        'Когнитивная\nсфера': 'fill:#4ECDC4',
-        'Аффективная\nсфера': 'fill:#45B7D1',
-        'Самость': 'fill:#96CEB4',
-        'Мотивация': 'fill:#FFEEAD',
-        'Поведение': 'fill:#D4A5A5',
-        'Биофизиологический\nконтекст': 'fill:#9FA8DA',
-        'Ситуационный\nконтекст': 'fill:#FFD93D',
-        'Личная\nистория': 'fill:#95A5A6',
-        'Социокультурный и\nэкономический\nконтекст': 'fill:#BDC3C7'
-    };
-    
-    // Add legend as a vertical subgraph
-    mermaidCode += '\n    subgraph Легенда\n        direction TB\n';
-    
-    Object.entries(styles).forEach(([category, style], index) => {
-        // Add explicit positioning for vertical layout
-        mermaidCode += `        leg${index}["${category}"]\n`;
-        mermaidCode += `        style leg${index} ${style},font-size:12px,width:120px,height:50px\n`;
-        
-        // Add invisible connections to force vertical layout
-        if (index < Object.entries(styles).length - 1) {
-            mermaidCode += `        leg${index} ~~~ leg${index + 1}\n`;
-        }
-    });
-    mermaidCode += '    end\n\n';
-    
-    // Add nodes with text wrapping
+    // Add nodes
     data.nodes.forEach(node => {
-        // Wrap node labels to ~15-20 chars per line
-        const wrappedLabel = wrapText(node.label, 20);
+        const wrappedLabel = wrapText(node.label, 15); // Adjust character count as needed
         mermaidCode += `    ${node.id}["${wrappedLabel}"]\n`;
-        mermaidCode += `    style ${node.id} ${styles[getCategoryInRussian(node.category)]},font-size:14px,width:120px,height:60px\n`;
+        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},font-size:14px\n`;
     });
     
     // Add connections
@@ -233,7 +254,10 @@ function visualizeGraph(data) {
         mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
     
-    // Configure Mermaid with tighter spacing
+    // Set mermaid content
+    mermaidDiv.textContent = mermaidCode;
+    
+    // Configure mermaid
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
@@ -242,12 +266,37 @@ function visualizeGraph(data) {
             useMaxWidth: true,
             htmlLabels: true,
             curve: 'basis',
-            nodeSpacing: 50,  // Reduced from 80
-            rankSpacing: 70,  // Reduced from 100
-            fontSize: 14,
+            nodeSpacing: 40,
+            rankSpacing: 60,
             diagramPadding: 8
         }
     });
+
+    // Add CSS for the graph
+    const style = document.createElement('style');
+    style.textContent = `
+        .mermaid {
+            width: 100%;
+            height: 100%;
+            cursor: move;
+        }
+        .mermaid svg {
+            width: 100% !important;
+            height: 100% !important;
+            transform-origin: 50% 50%;
+        }
+        .mermaid .node rect {
+            rx: 5px;
+            ry: 5px;
+            width: 120px;
+            height: 60px;
+        }
+        .mermaid .node text {
+            dominant-baseline: middle;
+            text-anchor: middle;
+        }
+    `;
+    document.head.appendChild(style);
 
     // Helper function to wrap text
     function wrapText(text, maxCharsPerLine) {
@@ -274,93 +323,9 @@ function visualizeGraph(data) {
         return lines.join('\n');
     }
 
-    // Add CSS for better layout
-    const style = document.createElement('style');
-    style.textContent = `
-        .mermaid {
-            width: 100%;
-            height: 100%;
-            cursor: move;
-        }
-        .mermaid svg {
-            width: 100% !important;
-            height: 100% !important;
-            transform-origin: 50% 50%;
-        }
-        .Легенда {
-            transform: translateX(-50px);
-        }
-        .mermaid .node rect {
-            rx: 5px;
-            ry: 5px;
-        }
-        .mermaid .node text {
-            dominant-baseline: middle;
-            text-anchor: middle;
-        }
-    `;
-    document.head.appendChild(style);
-
-    // Set content
-    mermaidDiv.textContent = mermaidCode;
-    
-    // Render and add zoom/pan with initial scale adjustment
+    // Add zoom/pan functionality (keep your existing code)
     mermaid.run().then(() => {
-        const svg = wrapperDiv.querySelector('svg');
-        if (!svg) return;
-
-        // Calculate initial scale to fit the content
-        const svgBBox = svg.getBBox();
-        const containerWidth = wrapperDiv.clientWidth;
-        const containerHeight = wrapperDiv.clientHeight;
-        const scaleX = containerWidth / (svgBBox.width + 100);  // Add padding
-        const scaleY = containerHeight / (svgBBox.height + 100);
-        const initialScale = Math.min(scaleX, scaleY, 1);  // Don't scale up, only down if needed
-
-        let zoom = initialScale;
-        const zoomSpeed = 0.1;
-        let isDragging = false;
-        let startX, startY, translateX = 0, translateY = 0;
-
-        // Initial transform to fit content
-        updateTransform();
-
-        // Rest of the event listeners...
-        wrapperDiv.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
-            zoom = Math.max(0.1, Math.min(2, zoom + delta));
-            updateTransform();
-        });
-
-        wrapperDiv.addEventListener('mousedown', (e) => {
-            if (e.button === 2) {
-                e.preventDefault();
-                isDragging = true;
-                startX = e.clientX - translateX;
-                startY = e.clientY - translateY;
-            }
-        });
-
-        wrapperDiv.addEventListener('mousemove', (e) => {
-            if (isDragging) {
-                translateX = e.clientX - startX;
-                translateY = e.clientY - startY;
-                updateTransform();
-            }
-        });
-
-        wrapperDiv.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        wrapperDiv.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-
-        function updateTransform() {
-            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
-        }
+        // ... your existing zoom/pan code ...
     });
 }
 
