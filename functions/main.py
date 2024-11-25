@@ -4,13 +4,14 @@ from firebase_admin import credentials, db
 from openai import OpenAI
 import json
 from datetime import datetime
+import os
 
 # Initialize Firebase Admin
 firebase_admin.initialize_app()
 
 # Initialize OpenAI client
 openai_client = OpenAI(
-    api_key=functions.config().get('openai', {}).get('apikey')
+    api_key=os.environ.get('OPENAI_API_KEY')
 )
 
 @functions.https_fn.on_call()
