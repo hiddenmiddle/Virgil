@@ -173,10 +173,35 @@ function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
     
+    // Create wrapper div for the diagram
+    const wrapperDiv = document.createElement('div');
+    wrapperDiv.style.width = '100%';
+    wrapperDiv.style.height = '80vh'; // 80% of viewport height
+    wrapperDiv.style.overflow = 'hidden';
+    wrapperDiv.style.position = 'relative';
+    container.appendChild(wrapperDiv);
+    
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
+    wrapperDiv.appendChild(mermaidDiv);
     
-    let mermaidCode = 'flowchart LR\n';
+    let mermaidCode = `---
+    title: Process-Based Therapy Analysis
+    ---
+    flowchart LR
+    %% Configuration
+    graph TD
+    %%{
+        init: {
+            "flowchart": {
+                "nodeSpacing": 80,
+                "rankSpacing": 100,
+                "curve": "basis",
+                "htmlLabels": true,
+                "fontSize": 14
+            }
+        }
+    }%%\n`;
     
     // Define styles for categories
     const styles = {
@@ -192,13 +217,26 @@ function visualizeGraph(data) {
         'Broader socio-cultural and economical context': 'fill:#BDC3C7'
     };
     
+    // Add legend as a subgraph on the left
+    mermaidCode += '\n    subgraph Legend\n    direction TB\n'; // TB = top to bottom
+    Object.entries(styles).forEach(([category, style], index) => {
+        mermaidCode += `        leg${index}["${category}"]\n`;
+        mermaidCode += `        style leg${index} ${style}\n`;
+        if (index < Object.entries(styles).length - 1) {
+            mermaidCode += `        leg${index} --> leg${index + 1}\n`;
+            mermaidCode += `        linkStyle ${index} stroke:none\n`; // Hide legend connectors
+        }
+    });
+    mermaidCode += '    end\n\n';
+    
     // Add nodes
     data.nodes.forEach(node => {
         mermaidCode += `    ${node.id}["${node.label}"]\n`;
-        mermaidCode += `    style ${node.id} ${styles[node.category]}\n`;
+        mermaidCode += `    style ${node.id} ${styles[node.category]},font-size:14px\n`;
     });
     
     // Add connections
+    const linkStartIndex = Object.entries(styles).length - 1; // Account for legend links
     data.links.forEach((link, index) => {
         if (link.bidirectional) {
             mermaidCode += `    ${link.source} <--> ${link.target}\n`;
@@ -207,39 +245,91 @@ function visualizeGraph(data) {
         }
     });
 
-    // Add link styles after all links are defined
-    mermaidCode += '\n    %% Link styles\n';
+    // Add link styles
     data.links.forEach((link, index) => {
-        mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
+        mermaidCode += `    linkStyle ${index + linkStartIndex} stroke-width:${link.importance}px\n`;
     });
     
-    // Add legend
-    mermaidCode += '\n    subgraph Legend\n';
-    Object.entries(styles).forEach(([category, style], index) => {
-        mermaidCode += `        leg${index}["${category}"]\n`;
-        mermaidCode += `        style leg${index} ${style}\n`;
-    });
-    mermaidCode += '    end\n';
-    
-    // Set content and initialize
+    // Set content
     mermaidDiv.textContent = mermaidCode;
-    container.appendChild(mermaidDiv);
     
     // Configure and initialize Mermaid
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
+        securityLevel: 'loose', // Required for zooming/panning
         flowchart: {
-            curve: 'basis',
-            padding: 20,
-            nodeSpacing: 50,
-            rankSpacing: 50,
-            htmlLabels: true
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
         }
     });
-    
-    // Render
-    mermaid.run();
+
+    // Add CSS for zoom and pan
+    const style = document.createElement('style');
+    style.textContent = `
+        .mermaid {
+            width: 100%;
+            height: 100%;
+            cursor: move;
+        }
+        .mermaid svg {
+            width: 100% !important;
+            height: 100% !important;
+            transform-origin: 50% 50%;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Render and add zoom/pan functionality
+    mermaid.run().then(() => {
+        const svg = wrapperDiv.querySelector('svg');
+        if (!svg) return;
+
+        // Add zoom/pan functionality
+        let zoom = 1;
+        const zoomSpeed = 0.1;
+        let isDragging = false;
+        let startX, startY, translateX = 0, translateY = 0;
+
+        // Zoom with mouse wheel
+        wrapperDiv.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+            zoom = Math.max(0.1, Math.min(2, zoom + delta));
+            updateTransform();
+        });
+
+        // Pan with right mouse button
+        wrapperDiv.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { // Right mouse button
+                e.preventDefault();
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+            }
+        });
+
+        wrapperDiv.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+            }
+        });
+
+        wrapperDiv.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        wrapperDiv.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); // Prevent context menu
+        });
+
+        function updateTransform() {
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
+        }
+    });
 }
 
 // Load initial data
