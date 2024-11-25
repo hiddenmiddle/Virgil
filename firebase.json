@@ -17,6 +17,10 @@
     {
       "source": "functions",
       "codebase": "default",
+      "runtime": "python312",
+      "environmentVariables": {
+        "PYTHON_ENV": "conda"
+      },
       "ignore": [
         "venv",
         ".git",
