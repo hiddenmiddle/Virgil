@@ -126,8 +126,9 @@ createBtn.onclick = async () => {
     }
     
     try {
-        // First, create a reference to monitor the status
-        const statusRef = ref(database, `conceptualizations/${selectedClient}/sessions/${selectedSession}`);
+        // Clear previous content and show loading
+        const graphContainer = document.getElementById('graph-container');
+        graphContainer.innerHTML = '<div class="loading">Processing...</div>';
         
         // Send request to create analysis
         const createFunction = httpsCallable(functions, 'create_pbt_conceptualization');
@@ -138,17 +139,20 @@ createBtn.onclick = async () => {
         });
         
         // Listen for changes to the analysis status
-        onValue(statusRef, (snapshot) => {
+        const statusRef = ref(database, `conceptualizations/${selectedClient}/sessions/${selectedSession}`);
+        const unsubscribe = onValue(statusRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
             
             switch(data.status) {
                 case 'processing':
-                    // Show loading indicator
-                    document.getElementById('graph-container').innerHTML = 'Processing...';
+                    // Already showing loading indicator
                     break;
                     
                 case 'completed':
+                    // Clear the loading message
+                    graphContainer.innerHTML = '';
+                    
                     // Visualize the graph from database data
                     visualizeGraph({
                         nodes: data.nodes,
@@ -158,77 +162,181 @@ createBtn.onclick = async () => {
                             importance: edge.strength
                         }))
                     });
+                    
+                    // Unsubscribe from further updates once completed
+                    unsubscribe();
                     break;
                     
                 case 'error':
-                    alert(`Error in analysis: ${data.error_message}`);
+                    graphContainer.innerHTML = `<div class="error">Error: ${data.error_message}</div>`;
+                    unsubscribe();
                     break;
             }
         });
         
     } catch (error) {
         console.error('Detailed error:', error);
-        alert(`Error creating conceptualization: ${error.message}`);
+        document.getElementById('graph-container').innerHTML = `<div class="error">Error: ${error.message}</div>`;
     }
 };
 
 // Visualize graph using D3.js
 function visualizeGraph(data) {
-    const width = document.getElementById('graph-container').offsetWidth;
-    const height = document.getElementById('graph-container').offsetHeight;
+    const container = document.getElementById('graph-container');
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+    const legendWidth = 200; // Width for the legend panel
     
     // Clear existing visualization
     d3.select('#graph-container').selectAll('*').remove();
     
+    // Create SVG container
     const svg = d3.select('#graph-container')
         .append('svg')
         .attr('width', width)
         .attr('height', height);
         
-    // Create force simulation
-    const simulation = d3.forceSimulation(data.nodes)
-        .force('link', d3.forceLink(data.links).id(d => d.id))
-        .force('charge', d3.forceManyBody().strength(-200))
-        .force('center', d3.forceCenter(width / 2, height / 2));
+    // Add legend
+    const legend = svg.append('g')
+        .attr('class', 'legend')
+        .attr('transform', `translate(10,20)`);
         
-    // Add links
-    const links = svg.append('g')
-        .selectAll('line')
+    const categories = [
+        'Attentional processes',
+        'Cognitive sphere',
+        'Affective sphere',
+        'Selfing',
+        'Motivation',
+        'Overt behavior',
+        'Biophysiological context',
+        'Situational context',
+        'Personal history',
+        'Broader socio-cultural and economical context'
+    ];
+    
+    // Create legend items
+    legend.selectAll('rect')
+        .data(categories)
+        .enter()
+        .append('rect')
+        .attr('x', 0)
+        .attr('y', (d, i) => i * 25)
+        .attr('width', 20)
+        .attr('height', 20)
+        .attr('fill', d => getCategoryColor(d));
+        
+    legend.selectAll('text')
+        .data(categories)
+        .enter()
+        .append('text')
+        .attr('x', 25)
+        .attr('y', (d, i) => i * 25 + 15)
+        .text(d => d)
+        .attr('font-size', '12px');
+        
+    // Create main visualization area
+    const mainGroup = svg.append('g')
+        .attr('transform', `translate(${legendWidth + 20}, 20)`);
+        
+    // Calculate layout
+    const nodeWidth = 150;
+    const nodeHeight = 80;
+    const horizontalSpacing = 200;
+    const verticalSpacing = 100;
+    const nodesPerColumn = Math.ceil(Math.sqrt(data.nodes.length));
+    
+    // Position nodes in a grid layout
+    data.nodes.forEach((node, i) => {
+        const column = Math.floor(i / nodesPerColumn);
+        const row = i % nodesPerColumn;
+        node.x = column * horizontalSpacing;
+        node.y = row * verticalSpacing;
+    });
+    
+    // Create arrow marker for links
+    svg.append('defs').append('marker')
+        .attr('id', 'arrowhead')
+        .attr('viewBox', '-0 -5 10 10')
+        .attr('refX', 8)
+        .attr('refY', 0)
+        .attr('orient', 'auto')
+        .attr('markerWidth', 6)
+        .attr('markerHeight', 6)
+        .append('path')
+        .attr('d', 'M0,-5L10,0L0,5')
+        .attr('fill', '#999');
+        
+    // Draw links with arrows
+    const links = mainGroup.selectAll('path')
         .data(data.links)
         .enter()
-        .append('line')
+        .append('path')
+        .attr('d', d => {
+            const sourceNode = data.nodes.find(n => n.id === d.source);
+            const targetNode = data.nodes.find(n => n.id === d.target);
+            return `M${sourceNode.x + nodeWidth/2},${sourceNode.y + nodeHeight/2} 
+                    L${targetNode.x + nodeWidth/2},${targetNode.y + nodeHeight/2}`;
+        })
         .attr('stroke', '#999')
-        .attr('stroke-width', d => d.importance);
+        .attr('stroke-width', d => d.importance)
+        .attr('fill', 'none')
+        .attr('marker-end', 'url(#arrowhead)');
         
-    // Add nodes
-    const nodes = svg.append('g')
-        .selectAll('g')
+    // Draw nodes as rectangles with labels
+    const nodes = mainGroup.selectAll('g')
         .data(data.nodes)
         .enter()
-        .append('g');
+        .append('g')
+        .attr('transform', d => `translate(${d.x},${d.y})`);
         
     nodes.append('rect')
-        .attr('width', 120)
-        .attr('height', 60)
-        .attr('fill', d => getCategoryColor(d.category));
+        .attr('width', nodeWidth)
+        .attr('height', nodeHeight)
+        .attr('fill', d => getCategoryColor(d.category))
+        .attr('rx', 5)  // Rounded corners
+        .attr('ry', 5);
         
     nodes.append('text')
-        .text(d => d.content)
+        .attr('x', nodeWidth/2)
+        .attr('y', nodeHeight/2)
         .attr('text-anchor', 'middle')
         .attr('dominant-baseline', 'middle')
-        .attr('font-size', '10px')
-        .call(wrap, 110);
+        .attr('font-size', '12px')
+        .text(d => d.label)
+        .call(wrapText, nodeWidth - 10);
+}
+
+// Helper function to wrap text
+function wrapText(text, width) {
+    text.each(function() {
+        const text = d3.select(this);
+        const words = text.text().split(/\s+/);
+        const lineHeight = 1.1;
+        const y = text.attr('y');
+        let line = [];
+        let lineNumber = 0;
         
-    // Update positions
-    simulation.on('tick', () => {
-        links
-            .attr('x1', d => d.source.x)
-            .attr('y1', d => d.source.y)
-            .attr('x2', d => d.target.x)
-            .attr('y2', d => d.target.y);
+        const tspan = text.text(null)
+            .append('tspan')
+            .attr('x', text.attr('x'))
+            .attr('y', y)
+            .attr('dy', 0);
             
-        nodes
-            .attr('transform', d => `translate(${d.x-60},${d.y-30})`);
+        words.forEach(word => {
+            line.push(word);
+            tspan.text(line.join(' '));
+            
+            if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(' '));
+                line = [word];
+                tspan = text.append('tspan')
+                    .attr('x', text.attr('x'))
+                    .attr('y', y)
+                    .attr('dy', ++lineNumber * lineHeight + 'em')
+                    .text(word);
+            }
+        });
     });
 }
 
@@ -294,3 +402,20 @@ function loadGraph(clientId, sessionNum) {
         }
     });
 }
+
+// Add some CSS for the loading and error states
+const style = document.createElement('style');
+style.textContent = `
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    
+    .error {
+        text-align: center;
+        padding: 20px;
+        color: #ff4444;
+    }
+`;
+document.head.appendChild(style);
