@@ -173,7 +173,6 @@ function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
     
-    // Create wrapper div for the diagram
     const wrapperDiv = document.createElement('div');
     wrapperDiv.style.width = '100%';
     wrapperDiv.style.height = '80vh';
@@ -185,55 +184,55 @@ function visualizeGraph(data) {
     mermaidDiv.className = 'mermaid';
     wrapperDiv.appendChild(mermaidDiv);
     
-    // Start with flowchart definition
     let mermaidCode = `flowchart LR\n`;
     
-    // Define styles for categories
+    // Define styles with Russian translations
     const styles = {
-        'Attentional processes': 'fill:#FF6B6B',
-        'Cognitive sphere': 'fill:#4ECDC4',
-        'Affective sphere': 'fill:#45B7D1',
-        'Selfing': 'fill:#96CEB4',
-        'Motivation': 'fill:#FFEEAD',
-        'Overt behavior': 'fill:#D4A5A5',
-        'Biophysiological context': 'fill:#9FA8DA',
-        'Situational context': 'fill:#FFD93D',
-        'Personal history': 'fill:#95A5A6',
-        'Broader socio-cultural and economical context': 'fill:#BDC3C7'
+        'Процессы внимания': 'fill:#FF6B6B',
+        'Когнитивная сфера': 'fill:#4ECDC4',
+        'Аффективная сфера': 'fill:#45B7D1',
+        'Самость': 'fill:#96CEB4',
+        'Мотивация': 'fill:#FFEEAD',
+        'Поведение': 'fill:#D4A5A5',
+        'Биофизиологический контекст': 'fill:#9FA8DA',
+        'Ситуационный контекст': 'fill:#FFD93D',
+        'Личная история': 'fill:#95A5A6',
+        'Социокультурный и экономический контекст': 'fill:#BDC3C7'
     };
     
-    // Add legend as a subgraph on the left
-    mermaidCode += '\n    subgraph Legend\n        direction TB\n'; // TB = top to bottom
+    // Add legend as a subgraph with explicit positioning
+    mermaidCode += '\n    subgraph Legend[""]\n        direction TB\n';
     Object.entries(styles).forEach(([category, style], index) => {
         mermaidCode += `        leg${index}["${category}"]\n`;
-        mermaidCode += `        style leg${index} ${style}\n`;
+        mermaidCode += `        style leg${index} ${style},font-size:12px\n`;
         if (index < Object.entries(styles).length - 1) {
-            mermaidCode += `        leg${index} --- leg${index + 1}\n`; // Using --- for legend connections
+            mermaidCode += `        leg${index} --- leg${index + 1}\n`;
+            mermaidCode += `        linkStyle ${index} stroke:none\n`;
         }
     });
     mermaidCode += '    end\n\n';
     
-    // Add nodes
+    // Add nodes with increased spacing from legend
     data.nodes.forEach(node => {
         mermaidCode += `    ${node.id}["${node.label}"]\n`;
-        mermaidCode += `    style ${node.id} ${styles[node.category]},font-size:14px\n`;
+        mermaidCode += `    style ${node.id} ${styles[getCategoryInRussian(node.category)]},font-size:14px\n`;
     });
     
     // Add connections
+    const linkStartIndex = Object.entries(styles).length;
     data.links.forEach((link, index) => {
         if (link.bidirectional) {
             mermaidCode += `    ${link.source} <--> ${link.target}\n`;
         } else {
             mermaidCode += `    ${link.source} --> ${link.target}\n`;
         }
-        // Add link style right after each link
-        mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
+        mermaidCode += `    linkStyle ${index + linkStartIndex} stroke-width:${link.importance}px\n`;
     });
     
     // Set content
     mermaidDiv.textContent = mermaidCode;
     
-    // Configure Mermaid
+    // Configure Mermaid with adjusted spacing
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
@@ -242,13 +241,14 @@ function visualizeGraph(data) {
             useMaxWidth: true,
             htmlLabels: true,
             curve: 'basis',
-            nodeSpacing: 80,
-            rankSpacing: 100,
-            fontSize: 14
+            nodeSpacing: 100,  // Increased spacing
+            rankSpacing: 120,  // Increased spacing
+            fontSize: 14,
+            diagramPadding: 20
         }
     });
 
-    // Add CSS for zoom and pan
+    // Add CSS for better initial scaling and positioning
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
@@ -261,19 +261,34 @@ function visualizeGraph(data) {
             height: 100% !important;
             transform-origin: 50% 50%;
         }
+        #Legend {
+            transform: translateX(-50px);  /* Move legend more to the left */
+        }
     `;
     document.head.appendChild(style);
 
-    // Render and add zoom/pan functionality
+    // Render and add zoom/pan with initial scale adjustment
     mermaid.run().then(() => {
         const svg = wrapperDiv.querySelector('svg');
         if (!svg) return;
 
-        let zoom = 1;
+        // Calculate initial scale to fit the content
+        const svgBBox = svg.getBBox();
+        const containerWidth = wrapperDiv.clientWidth;
+        const containerHeight = wrapperDiv.clientHeight;
+        const scaleX = containerWidth / (svgBBox.width + 100);  // Add padding
+        const scaleY = containerHeight / (svgBBox.height + 100);
+        const initialScale = Math.min(scaleX, scaleY, 1);  // Don't scale up, only down if needed
+
+        let zoom = initialScale;
         const zoomSpeed = 0.1;
         let isDragging = false;
         let startX, startY, translateX = 0, translateY = 0;
 
+        // Initial transform to fit content
+        updateTransform();
+
+        // Rest of the event listeners...
         wrapperDiv.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -310,6 +325,23 @@ function visualizeGraph(data) {
             svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
         }
     });
+}
+
+// Helper function to translate categories to Russian
+function getCategoryInRussian(category) {
+    const translations = {
+        'Attentional processes': 'Процессы внимания',
+        'Cognitive sphere': 'Когнитивная сфера',
+        'Affective sphere': 'Аффективная сфера',
+        'Selfing': 'Самость',
+        'Motivation': 'Мотивация',
+        'Overt behavior': 'Поведение',
+        'Biophysiological context': 'Биофизиологический контекст',
+        'Situational context': 'Ситуационный контекст',
+        'Personal history': 'Личная история',
+        'Broader socio-cultural and economical context': 'Социокультурный и экономический контекст'
+    };
+    return translations[category] || category;
 }
 
 // Load initial data
