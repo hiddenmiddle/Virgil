@@ -1,16 +1,15 @@
-import firebase_functions as functions
-import firebase_admin
-from firebase_admin import credentials, db
+from firebase_functions import https_fn
+from firebase_admin import initialize_app, db
 from openai import OpenAI
 import json
 from datetime import datetime
 import os
 
 # Initialize Firebase Admin
-firebase_admin.initialize_app()
+initialize_app()
 
-@functions.https_fn.on_call()
-def create_pbt_conceptualization(req: functions.https_fn.Request) -> functions.https_fn.Response:
+@https_fn.on_call()
+def create_pbt_conceptualization(req: https_fn.Request) -> https_fn.Response:
     """Create PBT conceptualization and store in Firebase."""
     try:
         # Initialize OpenAI client inside the function
@@ -95,14 +94,14 @@ def create_pbt_conceptualization(req: functions.https_fn.Request) -> functions.h
             'analysis': analysis_result
         })
 
-        return functions.https_fn.Response(
+        return https_fn.Response(
             json.dumps({'success': True, 'data': analysis_result}),
             status=200,
             content_type='application/json'
         )
 
     except Exception as e:
-        return functions.https_fn.Response(
+        return https_fn.Response(
             json.dumps({'success': False, 'error': str(e)}),
             status=500,
             content_type='application/json'
