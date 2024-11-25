@@ -184,7 +184,7 @@ createBtn.onclick = async () => {
 function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
     const width = container.offsetWidth;
-    const height = container.offsetHeight || 800; // Set minimum height if not specified
+    const height = container.offsetHeight || 800;
     const legendWidth = 200;
     
     // Clear existing visualization
@@ -194,12 +194,13 @@ function visualizeGraph(data) {
         .append('svg')
         .attr('width', width)
         .attr('height', height);
-        
-    // Add legend
+
+    // Add legend group
     const legend = svg.append('g')
         .attr('class', 'legend')
         .attr('transform', `translate(10,20)`);
         
+    // Define categories and add legend items
     const categories = [
         'Attentional processes',
         'Cognitive sphere',
@@ -213,7 +214,6 @@ function visualizeGraph(data) {
         'Broader socio-cultural and economical context'
     ];
     
-    // Create legend items
     legend.selectAll('rect')
         .data(categories)
         .enter()
@@ -232,12 +232,12 @@ function visualizeGraph(data) {
         .attr('y', (d, i) => i * 25 + 15)
         .text(d => d)
         .attr('font-size', '12px');
-        
+
     // Create main visualization area
     const mainGroup = svg.append('g')
         .attr('transform', `translate(${legendWidth + 20}, 20)`);
 
-    // Calculate node connections for centrality
+    // Calculate node positions based on connections
     const nodeConnections = {};
     data.nodes.forEach(node => {
         nodeConnections[node.id] = 0;
@@ -248,23 +248,32 @@ function visualizeGraph(data) {
         nodeConnections[link.target]++;
     });
 
-    // Create force simulation
-    const simulation = d3.forceSimulation(data.nodes)
-        .force('link', d3.forceLink(data.links)
-            .id(d => d.id)
-            .distance(150)) // Increased distance between nodes
-        .force('charge', d3.forceManyBody()
-            .strength(-1000)) // Stronger repulsion
-        .force('center', d3.forceCenter(
-            (width - legendWidth) / 2, 
-            height / 2
-        ))
-        .force('collision', d3.forceCollide()
-            .radius(80)) // Prevent node overlap
-        .on('tick', ticked);
+    // Position nodes in layers based on connection count
+    const layers = {};
+    Object.entries(nodeConnections).forEach(([id, count]) => {
+        const layer = count;
+        if (!layers[layer]) layers[layer] = [];
+        layers[layer].push(id);
+    });
 
-    // Create arrow markers for different strengths
-    const arrowMarkers = mainGroup.append('defs').selectAll('marker')
+    // Calculate positions
+    const nodeWidth = 140;
+    const nodeHeight = 80;
+    const horizontalSpacing = 180;
+    const verticalSpacing = 100;
+
+    data.nodes.forEach(node => {
+        const layer = nodeConnections[node.id];
+        const layerNodes = layers[layer];
+        const index = layerNodes.indexOf(node.id);
+        
+        // Position more connected nodes towards the center
+        node.x = (width - legendWidth) / 2 + (layer - Math.max(...Object.keys(layers))) * horizontalSpacing;
+        node.y = height / 2 + (index - layerNodes.length / 2) * verticalSpacing;
+    });
+
+    // Create arrow markers
+    mainGroup.append('defs').selectAll('marker')
         .data([1, 2, 3, 4, 5])
         .enter()
         .append('marker')
@@ -280,72 +289,59 @@ function visualizeGraph(data) {
         .attr('fill', '#999');
 
     // Draw links
-    const links = mainGroup.append('g')
-        .selectAll('path')
+    mainGroup.selectAll('path')
         .data(data.links)
         .enter()
         .append('path')
-        .attr('stroke', '#999')
-        .attr('stroke-width', d => d.importance)
-        .attr('marker-end', d => `url(#arrowhead-${d.importance})`)
-        .attr('fill', 'none');
+        .attr('d', d => {
+            const source = data.nodes.find(n => n.id === d.source);
+            const target = data.nodes.find(n => n.id === d.target);
+            
+            // Calculate path
+            const sourceX = source.x + nodeWidth / 2;
+            const sourceY = source.y + nodeHeight / 2;
+            const targetX = target.x + nodeWidth / 2;
+            const targetY = target.y + nodeHeight / 2;
 
-    // For bidirectional links
-    const bidirectionalLinks = mainGroup.append('g')
-        .selectAll('path')
-        .data(data.links.filter(d => d.bidirectional))
-        .enter()
-        .append('path')
+            // Create curved path
+            const dx = targetX - sourceX;
+            const dy = targetY - sourceY;
+            const dr = Math.sqrt(dx * dx + dy * dy);
+            
+            return d.bidirectional ?
+                `M${sourceX},${sourceY}A${dr},${dr} 0 0,1 ${targetX},${targetY}` :
+                `M${sourceX},${sourceY}L${targetX},${targetY}`;
+        })
         .attr('stroke', '#999')
         .attr('stroke-width', d => d.importance)
-        .attr('marker-start', d => `url(#arrowhead-${d.importance})`)
-        .attr('fill', 'none');
+        .attr('fill', 'none')
+        .attr('marker-end', d => `url(#arrowhead-${d.importance})`);
 
     // Draw nodes
-    const nodes = mainGroup.append('g')
-        .selectAll('g')
+    const nodes = mainGroup.selectAll('g.node')
         .data(data.nodes)
         .enter()
-        .append('g');
+        .append('g')
+        .attr('class', 'node')
+        .attr('transform', d => `translate(${d.x},${d.y})`);
 
     // Add rectangles
     nodes.append('rect')
-        .attr('width', 140)  // Slightly wider to accommodate text
-        .attr('height', 80)  // Slightly taller to accommodate multiple lines
+        .attr('width', nodeWidth)
+        .attr('height', nodeHeight)
         .attr('rx', 5)
         .attr('ry', 5)
         .attr('fill', d => getCategoryColor(d.category));
 
-    // Add text labels with improved positioning
+    // Add text labels
     nodes.append('text')
         .attr('text-anchor', 'middle')
-        .attr('x', 70)  // Half of rectangle width
-        .attr('y', 40)  // Half of rectangle height
+        .attr('x', nodeWidth / 2)
+        .attr('y', nodeHeight / 2)
         .attr('font-size', '12px')
         .style('font-family', 'Arial, sans-serif')
         .text(d => d.label)
-        .call(wrapText, 130);  // Slightly less than rectangle width to add padding
-
-    function ticked() {
-        // Update link positions with curved paths
-        links.attr('d', d => {
-            const dx = d.target.x - d.source.x;
-            const dy = d.target.y - d.source.y;
-            const dr = Math.sqrt(dx * dx + dy * dy);
-            return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
-        });
-
-        // Update bidirectional link positions
-        bidirectionalLinks.attr('d', d => {
-            const dx = d.target.x - d.source.x;
-            const dy = d.target.y - d.source.y;
-            const dr = Math.sqrt(dx * dx + dy * dy);
-            return `M${d.target.x},${d.target.y}A${dr},${dr} 0 0,0 ${d.source.x},${d.source.y}`;
-        });
-
-        // Update node positions
-        nodes.attr('transform', d => `translate(${d.x - 60},${d.y - 30})`);
-    }
+        .call(wrapText, nodeWidth - 10);
 }
 
 // Improved text wrapping function
