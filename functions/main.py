@@ -13,7 +13,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
     """Create PBT conceptualization and store in Firebase."""
     try:
         # Debug: Print all environment variables
-        print("Environment variables:", dict(os.environ))
+        print("All environment variables:", dict(os.environ))
         
         # Get data from request
         data = req.data
@@ -29,10 +29,11 @@ def create_pbt_conceptualization(req: https_fn.Request):
         try:
             # Get API key from environment
             api_key = os.environ.get('OPENAI_API_KEY')
-            print(f"Found API key: {'Yes' if api_key else 'No'}")  # Debug log (don't print the actual key!)
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY environment variable is not set")
             
             openai_client = OpenAI(
-                api_key=options.get('openai.apikey')
+                api_key=api_key
             )
             print("OpenAI client initialized")  # Debug log
         except Exception as e:
@@ -42,7 +43,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
         try:
             # Create OpenAI request
             response = openai_client.chat.completions.create(
-                model="gpt-4-0125-preview",
+                model="gpt-4o",
                 messages=[
                     {
                         "role": "system",
