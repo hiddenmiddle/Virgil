@@ -246,10 +246,10 @@ function visualizeGraph(data) {
     // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes with fixed rectangle syntax and better text wrapping
+    // Add nodes with single rectangle syntax and text wrapping
     data.nodes.forEach(node => {
-        const wrappedLabel = wrapText(node.label, 12); // Reduced character count for better wrapping
-        mermaidCode += `    ${node.id}["${wrappedLabel}"]\n`; // Single rectangle syntax
+        const wrappedLabel = wrapText(node.label, 12);
+        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`; // Removed the quotes - this gives single rectangles
         mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
     });
     
