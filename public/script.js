@@ -173,21 +173,26 @@ function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
     container.innerHTML = '';
     
-    // Create wrapper for both legend and graph
+    // Create wrapper with proper styling
     const wrapperDiv = document.createElement('div');
     wrapperDiv.style.width = '100%';
     wrapperDiv.style.height = '80vh';
     wrapperDiv.style.display = 'flex';
     wrapperDiv.style.position = 'relative';
+    wrapperDiv.style.border = '1px solid #ddd';
+    wrapperDiv.style.overflow = 'hidden';
     container.appendChild(wrapperDiv);
 
-    // Create and style legend
+    // Create and style legend container
     const legendDiv = document.createElement('div');
     legendDiv.style.width = '200px';
     legendDiv.style.padding = '20px';
     legendDiv.style.display = 'flex';
     legendDiv.style.flexDirection = 'column';
     legendDiv.style.gap = '10px';
+    legendDiv.style.borderRight = '1px solid #ddd';
+    legendDiv.style.overflowY = 'auto';
+    legendDiv.style.backgroundColor = '#fff';
     wrapperDiv.appendChild(legendDiv);
 
     // Define styles with Russian translations
@@ -208,18 +213,21 @@ function visualizeGraph(data) {
     Object.entries(styles).forEach(([category, color]) => {
         const legendItem = document.createElement('div');
         legendItem.style.display = 'flex';
-        legendItem.style.alignItems = 'center';
+        legendItem.style.alignItems = 'flex-start';
         legendItem.style.gap = '10px';
+        legendItem.style.marginBottom = '8px';
 
         const colorBox = document.createElement('div');
         colorBox.style.width = '20px';
         colorBox.style.height = '20px';
         colorBox.style.backgroundColor = color;
         colorBox.style.borderRadius = '4px';
+        colorBox.style.flexShrink = '0';
+        colorBox.style.marginTop = '2px';
 
         const label = document.createElement('div');
         label.style.fontSize = '12px';
-        label.style.lineHeight = '1.2';
+        label.style.lineHeight = '1.3';
         label.textContent = category;
 
         legendItem.appendChild(colorBox);
@@ -227,21 +235,24 @@ function visualizeGraph(data) {
         legendDiv.appendChild(legendItem);
     });
 
-    // Create mermaid container
+    // Create graph container with proper styling
+    const graphContainer = document.createElement('div');
+    graphContainer.style.flex = '1';
+    graphContainer.style.position = 'relative';
+    graphContainer.style.overflow = 'hidden';
+    wrapperDiv.appendChild(graphContainer);
+
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
-    mermaidDiv.style.flex = '1';
-    mermaidDiv.style.overflow = 'hidden';
-    wrapperDiv.appendChild(mermaidDiv);
+    graphContainer.appendChild(mermaidDiv);
 
-    // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes with simplified styling
+    // Add nodes
     data.nodes.forEach(node => {
         const wrappedLabel = wrapText(node.label, 15);
-        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`;
-        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px,width:120px\n`;
+        mermaidCode += `    ${node.id}[["${wrappedLabel}"]]\n`;
+        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
     });
     
     // Add connections
@@ -253,11 +264,10 @@ function visualizeGraph(data) {
         }
         mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
-    
-    // Set mermaid content
+
     mermaidDiv.textContent = mermaidCode;
-    
-    // Configure mermaid with adjusted settings
+
+    // Configure mermaid
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
@@ -266,14 +276,13 @@ function visualizeGraph(data) {
             useMaxWidth: true,
             htmlLabels: true,
             curve: 'basis',
-            nodeSpacing: 30,  // Reduced spacing
-            rankSpacing: 50,  // Reduced spacing
-            diagramPadding: 8,
-            defaultRenderer: 'dagre'
+            nodeSpacing: 30,
+            rankSpacing: 50,
+            diagramPadding: 8
         }
     });
 
-    // Update CSS for better node appearance
+    // Add CSS
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
@@ -290,50 +299,100 @@ function visualizeGraph(data) {
             rx: 5px;
             ry: 5px;
             width: 120px !important;
-            height: auto;
-            min-height: 60px;
+            height: 60px !important;
         }
         .mermaid .node text {
             dominant-baseline: middle;
             text-anchor: middle;
             fill: black !important;
-            font-weight: normal;
-        }
-        .mermaid .edgeLabel {
-            background-color: none !important;
         }
     `;
     document.head.appendChild(style);
 
-    // Helper function for better text wrapping
-    function wrapText(text, maxCharsPerLine) {
-        const words = text.split(' ');
-        let lines = [];
-        let currentLine = [];
-        let currentLength = 0;
+    // Render and add zoom/pan functionality
+    mermaid.run().then(() => {
+        const svg = graphContainer.querySelector('svg');
+        if (!svg) return;
 
-        words.forEach(word => {
-            if (currentLength + word.length > maxCharsPerLine) {
-                lines.push(currentLine.join(' '));
-                currentLine = [word];
-                currentLength = word.length;
-            } else {
-                currentLine.push(word);
-                currentLength += word.length + 1;
+        let zoom = 1;
+        const zoomSpeed = 0.1;
+        let isDragging = false;
+        let startX, startY, translateX = 0, translateY = 0;
+
+        // Calculate initial scale to fit content
+        const svgBBox = svg.getBBox();
+        const containerWidth = graphContainer.clientWidth;
+        const containerHeight = graphContainer.clientHeight;
+        const scaleX = containerWidth / (svgBBox.width + 100);
+        const scaleY = containerHeight / (svgBBox.height + 100);
+        zoom = Math.min(scaleX, scaleY, 1);
+
+        // Zoom handler
+        graphContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+            zoom = Math.max(0.1, Math.min(2, zoom + delta));
+            updateTransform();
+        });
+
+        // Pan handlers
+        graphContainer.addEventListener('mousedown', (e) => {
+            if (e.button === 2) {
+                e.preventDefault();
+                isDragging = true;
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
             }
         });
-        
-        if (currentLine.length > 0) {
-            lines.push(currentLine.join(' '));
+
+        graphContainer.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateTransform();
+            }
+        });
+
+        graphContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        graphContainer.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        function updateTransform() {
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
         }
 
-        return lines.join('\n');
+        // Initial transform
+        updateTransform();
+    });
+}
+
+// Helper function for text wrapping
+function wrapText(text, maxCharsPerLine) {
+    const words = text.split(' ');
+    let lines = [];
+    let currentLine = [];
+    let currentLength = 0;
+
+    words.forEach(word => {
+        if (currentLength + word.length > maxCharsPerLine) {
+            lines.push(currentLine.join(' '));
+            currentLine = [word];
+            currentLength = word.length;
+        } else {
+            currentLine.push(word);
+            currentLength += word.length + 1;
+        }
+    });
+    
+    if (currentLine.length > 0) {
+        lines.push(currentLine.join(' '));
     }
 
-    // Add zoom/pan functionality (keep your existing code)
-    mermaid.run().then(() => {
-        // ... your existing zoom/pan code ...
-    });
+    return lines.join('\n');
 }
 
 // Helper function to translate categories to Russian
