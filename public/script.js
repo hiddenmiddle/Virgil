@@ -126,11 +126,9 @@ createBtn.onclick = async () => {
     }
     
     try {
-        // Clear previous content and show loading
         const graphContainer = document.getElementById('graph-container');
         graphContainer.innerHTML = '<div class="loading">Processing...</div>';
         
-        // Send request to create analysis
         const createFunction = httpsCallable(functions, 'create_pbt_conceptualization');
         await createFunction({
             conversation,
@@ -140,259 +138,106 @@ createBtn.onclick = async () => {
         
         // Listen for changes to the analysis status
         const statusRef = ref(database, `conceptualizations/${selectedClient}/sessions/${selectedSession}`);
-        const unsubscribe = onValue(statusRef, (snapshot) => {
+        onValue(statusRef, (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
             
             switch(data.status) {
-                case 'processing':
-                    // Already showing loading indicator
-                    break;
-                    
                 case 'completed':
-                    // Clear the loading message
-                    graphContainer.innerHTML = '';
-                    
-                    // Visualize the graph from database data
                     visualizeGraph({
                         nodes: data.nodes,
                         links: data.edges.map(edge => ({
                             source: edge.from,
                             target: edge.to,
-                            importance: edge.strength
+                            importance: edge.strength,
+                            bidirectional: edge.bidirectional
                         }))
                     });
-                    
-                    // Unsubscribe from further updates once completed
-                    unsubscribe();
                     break;
                     
                 case 'error':
                     graphContainer.innerHTML = `<div class="error">Error: ${data.error_message}</div>`;
-                    unsubscribe();
                     break;
             }
         });
         
     } catch (error) {
         console.error('Detailed error:', error);
-        document.getElementById('graph-container').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+        document.getElementById('graph-container').innerHTML = 
+            `<div class="error">Error: ${error.message}</div>`;
     }
 };
 
-// Visualize graph using D3.js
+// Visualize graph using Mermaid.js
 function visualizeGraph(data) {
     const container = document.getElementById('graph-container');
-    const width = container.offsetWidth;
-    const height = container.offsetHeight || 800;
-    const legendWidth = 200;
     
-    // Clear existing visualization
-    d3.select('#graph-container').selectAll('*').remove();
+    // Clear existing content
+    container.innerHTML = '';
     
-    const svg = d3.select('#graph-container')
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height);
-
-    // Add legend group
-    const legend = svg.append('g')
-        .attr('class', 'legend')
-        .attr('transform', `translate(10,20)`);
-        
-    // Define categories and add legend items
-    const categories = [
-        'Attentional processes',
-        'Cognitive sphere',
-        'Affective sphere',
-        'Selfing',
-        'Motivation',
-        'Overt behavior',
-        'Biophysiological context',
-        'Situational context',
-        'Personal history',
-        'Broader socio-cultural and economical context'
-    ];
+    // Create mermaid div
+    const mermaidDiv = document.createElement('div');
+    mermaidDiv.className = 'mermaid';
     
-    legend.selectAll('rect')
-        .data(categories)
-        .enter()
-        .append('rect')
-        .attr('x', 0)
-        .attr('y', (d, i) => i * 25)
-        .attr('width', 20)
-        .attr('height', 20)
-        .attr('fill', d => getCategoryColor(d));
-        
-    legend.selectAll('text')
-        .data(categories)
-        .enter()
-        .append('text')
-        .attr('x', 25)
-        .attr('y', (d, i) => i * 25 + 15)
-        .text(d => d)
-        .attr('font-size', '12px');
-
-    // Create main visualization area
-    const mainGroup = svg.append('g')
-        .attr('transform', `translate(${legendWidth + 20}, 20)`);
-
-    // Calculate node positions based on connections
-    const nodeConnections = {};
+    // Convert data to mermaid flowchart syntax
+    let mermaidCode = 'flowchart LR\n';
+    
+    // Add style definitions for categories
+    mermaidCode += `%% Style definitions\n`;
+    const styles = {
+        'Attentional processes': 'fill:#FF6B6B',
+        'Cognitive sphere': 'fill:#4ECDC4',
+        'Affective sphere': 'fill:#45B7D1',
+        'Selfing': 'fill:#96CEB4',
+        'Motivation': 'fill:#FFEEAD',
+        'Overt behavior': 'fill:#D4A5A5',
+        'Biophysiological context': 'fill:#9FA8DA',
+        'Situational context': 'fill:#FFD93D',
+        'Personal history': 'fill:#95A5A6',
+        'Broader socio-cultural and economical context': 'fill:#BDC3C7'
+    };
+    
+    // Add nodes with their styles
     data.nodes.forEach(node => {
-        nodeConnections[node.id] = 0;
+        mermaidCode += `    ${node.id}["${node.label}"]\n`;
+        mermaidCode += `    style ${node.id} ${styles[node.category]},border-radius:5px\n`;
     });
     
+    // Add connections
     data.links.forEach(link => {
-        nodeConnections[link.source]++;
-        nodeConnections[link.target]++;
+        const lineStyle = link.importance ? ` thickness=${link.importance}` : '';
+        const arrow = link.bidirectional ? '<-->' : '-->';
+        mermaidCode += `    ${link.source} ${arrow}${lineStyle} ${link.target}\n`;
     });
-
-    // Position nodes in layers based on connection count
-    const layers = {};
-    Object.entries(nodeConnections).forEach(([id, count]) => {
-        const layer = count;
-        if (!layers[layer]) layers[layer] = [];
-        layers[layer].push(id);
+    
+    // Add legend as subgraph
+    mermaidCode += '\n    subgraph Legend\n';
+    Object.entries(styles).forEach(([category, style], index) => {
+        const legendId = `legend${index}`;
+        mermaidCode += `        ${legendId}["${category}"]\n`;
+        mermaidCode += `        style ${legendId} ${style}\n`;
     });
-
-    // Calculate positions
-    const nodeWidth = 140;
-    const nodeHeight = 80;
-    const horizontalSpacing = 180;
-    const verticalSpacing = 100;
-
-    data.nodes.forEach(node => {
-        const layer = nodeConnections[node.id];
-        const layerNodes = layers[layer];
-        const index = layerNodes.indexOf(node.id);
-        
-        // Position more connected nodes towards the center
-        node.x = (width - legendWidth) / 2 + (layer - Math.max(...Object.keys(layers))) * horizontalSpacing;
-        node.y = height / 2 + (index - layerNodes.length / 2) * verticalSpacing;
-    });
-
-    // Create arrow markers
-    mainGroup.append('defs').selectAll('marker')
-        .data([1, 2, 3, 4, 5])
-        .enter()
-        .append('marker')
-        .attr('id', d => `arrowhead-${d}`)
-        .attr('viewBox', '0 -5 10 10')
-        .attr('refX', 30)
-        .attr('refY', 0)
-        .attr('markerWidth', d => 4 + d)
-        .attr('markerHeight', d => 4 + d)
-        .attr('orient', 'auto')
-        .append('path')
-        .attr('d', 'M0,-5L10,0L0,5')
-        .attr('fill', '#999');
-
-    // Draw links
-    mainGroup.selectAll('path')
-        .data(data.links)
-        .enter()
-        .append('path')
-        .attr('d', d => {
-            const source = data.nodes.find(n => n.id === d.source);
-            const target = data.nodes.find(n => n.id === d.target);
-            
-            // Calculate path
-            const sourceX = source.x + nodeWidth / 2;
-            const sourceY = source.y + nodeHeight / 2;
-            const targetX = target.x + nodeWidth / 2;
-            const targetY = target.y + nodeHeight / 2;
-
-            // Create curved path
-            const dx = targetX - sourceX;
-            const dy = targetY - sourceY;
-            const dr = Math.sqrt(dx * dx + dy * dy);
-            
-            return d.bidirectional ?
-                `M${sourceX},${sourceY}A${dr},${dr} 0 0,1 ${targetX},${targetY}` :
-                `M${sourceX},${sourceY}L${targetX},${targetY}`;
-        })
-        .attr('stroke', '#999')
-        .attr('stroke-width', d => d.importance)
-        .attr('fill', 'none')
-        .attr('marker-end', d => `url(#arrowhead-${d.importance})`);
-
-    // Draw nodes
-    const nodes = mainGroup.selectAll('g.node')
-        .data(data.nodes)
-        .enter()
-        .append('g')
-        .attr('class', 'node')
-        .attr('transform', d => `translate(${d.x},${d.y})`);
-
-    // Add rectangles
-    nodes.append('rect')
-        .attr('width', nodeWidth)
-        .attr('height', nodeHeight)
-        .attr('rx', 5)
-        .attr('ry', 5)
-        .attr('fill', d => getCategoryColor(d.category));
-
-    // Add text labels
-    nodes.append('text')
-        .attr('text-anchor', 'middle')
-        .attr('x', nodeWidth / 2)
-        .attr('y', nodeHeight / 2)
-        .attr('font-size', '12px')
-        .style('font-family', 'Arial, sans-serif')
-        .text(d => d.label)
-        .call(wrapText, nodeWidth - 10);
-}
-
-// Improved text wrapping function
-function wrapText(selection, width) {
-    selection.each(function() {
-        const node = d3.select(this);
-        const words = node.text().split(/\s+/).reverse();
-        const lineHeight = 1.2; // Slightly increased for better readability
-        const y = node.attr("y");
-        const x = node.attr("x");
-        const dy = parseFloat(node.attr("dy")) || 0;
-        
-        let word;
-        let line = [];
-        let lineNumber = 0;
-        
-        // Clear existing content
-        node.text(null);
-        
-        // Create first tspan element
-        let tspan = node.append("tspan")
-            .attr("x", x)
-            .attr("y", y)
-            .attr("dy", dy + "em");
-            
-        // Add words until the line is too long
-        while (word = words.pop()) {
-            line.push(word);
-            tspan.text(line.join(" "));
-            
-            if (tspan.node().getComputedTextLength() > width) {
-                line.pop();
-                tspan.text(line.join(" "));
-                line = [word];
-                
-                tspan = node.append("tspan")
-                    .attr("x", x)
-                    .attr("y", y)
-                    .attr("dy", ++lineNumber * lineHeight + dy + "em")
-                    .text(word);
-            }
+    mermaidCode += '    end\n';
+    
+    // Set the mermaid content
+    mermaidDiv.textContent = mermaidCode;
+    container.appendChild(mermaidDiv);
+    
+    // Initialize mermaid
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        flowchart: {
+            curve: 'basis',
+            padding: 20,
+            nodeSpacing: 50,
+            rankSpacing: 50,
+            htmlLabels: true
         }
-        
-        // Center the text block vertically
-        const lines = node.selectAll('tspan')._groups[0].length;
-        const totalHeight = lines * lineHeight;
-        const startY = -totalHeight/2 * 14; // 14px is approximate line height
-        
-        node.selectAll('tspan')
-            .attr('dy', (d, i) => startY + (i * lineHeight) + "em");
     });
+    
+    // Render the diagram
+    mermaid.run();
 }
 
 // Load initial data
