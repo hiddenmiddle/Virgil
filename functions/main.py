@@ -47,7 +47,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
             
             # Get OpenAI analysis
             response = openai_client.chat.completions.create(
-                model="o1-preview",
+                model="gpt-4o",
                 response_format={ "type": "json_object" },
                 messages=[
                     {"role": "system", "content": """You are an expert in process-based therapy analysis. Analyze the conversation and identify elements that fit into these categories:
