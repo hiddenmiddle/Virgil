@@ -175,8 +175,22 @@ function visualizeGraph(data) {
     container.style.overflow = 'hidden';
     container.style.height = '80vh';
     container.style.display = 'flex';
-    container.style.backgroundColor = '#ECEFF1'; // Match the body background
+    container.style.backgroundColor = '#ECEFF1';
     container.innerHTML = '';
+    
+    // Define styles with Russian translations first
+    const styles = {
+        'Процессы внимания': '#FF6B6B',
+        'Когнитивная сфера': '#4ECDC4',
+        'Аффективная сфера': '#45B7D1',
+        'Самость': '#96CEB4',
+        'Мотивация': '#FFEEAD',
+        'Поведение': '#D4A5A5',
+        'Биофизиологический контекст': '#9FA8DA',
+        'Ситуационный контекст': '#FFD93D',
+        'Личная история': '#95A5A6',
+        'Социокультурный и экономический контекст': '#BDC3C7'
+    };
     
     // Create legend container that stays fixed
     const legendDiv = document.createElement('div');
