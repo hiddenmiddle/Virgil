@@ -176,7 +176,6 @@ function visualizeGraph(data) {
     const mermaidDiv = document.createElement('div');
     mermaidDiv.className = 'mermaid';
     
-    // Start flowchart definition
     let mermaidCode = 'flowchart LR\n';
     
     // Define styles for categories
@@ -195,28 +194,29 @@ function visualizeGraph(data) {
     
     // Add nodes
     data.nodes.forEach(node => {
-        mermaidCode += `    ${node.id}[${node.label}]\n`;
+        mermaidCode += `    ${node.id}["${node.label}"]\n`;
         mermaidCode += `    style ${node.id} ${styles[node.category]}\n`;
     });
     
-    // Add connections with correct Mermaid syntax
-    data.links.forEach(link => {
-        // Mermaid uses different arrow syntax and doesn't support thickness directly
-        // We'll use link styles instead
-        const linkId = `${link.source}_${link.target}`;
+    // Add connections
+    data.links.forEach((link, index) => {
         if (link.bidirectional) {
             mermaidCode += `    ${link.source} <--> ${link.target}\n`;
         } else {
             mermaidCode += `    ${link.source} --> ${link.target}\n`;
         }
-        // Add link style based on importance
-        mermaidCode += `    linkStyle ${linkId} stroke-width:${link.importance}px\n`;
+    });
+
+    // Add link styles after all links are defined
+    mermaidCode += '\n    %% Link styles\n';
+    data.links.forEach((link, index) => {
+        mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
     
     // Add legend
-    mermaidCode += '    subgraph Legend\n';
+    mermaidCode += '\n    subgraph Legend\n';
     Object.entries(styles).forEach(([category, style], index) => {
-        mermaidCode += `        leg${index}[${category}]\n`;
+        mermaidCode += `        leg${index}["${category}"]\n`;
         mermaidCode += `        style leg${index} ${style}\n`;
     });
     mermaidCode += '    end\n';
