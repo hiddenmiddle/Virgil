@@ -246,21 +246,25 @@ function visualizeGraph(data) {
     // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes with proper syntax for single rectangles and better text wrapping
+    // Add nodes with clean syntax and proper text wrapping
     data.nodes.forEach(node => {
-        const wrappedLabel = wrapText(node.label, 10); // Reduced character count for better wrapping
-        mermaidCode += `    ${node.id}((${wrappedLabel}))\n`; // Using (( )) syntax for single shape
-        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px,width:120px,height:60px\n`;
+        const wrappedLabel = wrapText(node.label, 10);
+        // Using clean node syntax with <br/> for line breaks
+        const formattedLabel = wrappedLabel.replace(/\n/g, '<br/>');
+        mermaidCode += `    ${node.id}["${formattedLabel}"]\n`;
+        // Add clean styling without stroke
+        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
     });
     
-    // Add connections
+    // Add connections with thicker lines for better visibility
     data.links.forEach((link, index) => {
         if (link.bidirectional) {
-            mermaidCode += `    ${link.source} <--> ${link.target}\n`;
+            mermaidCode += `    ${link.source} <==> ${link.target}\n`;
         } else {
-            mermaidCode += `    ${link.source} --> ${link.target}\n`;
+            mermaidCode += `    ${link.source} ==> ${link.target}\n`;
         }
-        mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
+        // Thicker lines for connections
+        mermaidCode += `    linkStyle ${index} stroke-width:2px\n`;
     });
 
     mermaidDiv.textContent = mermaidCode;
@@ -303,6 +307,9 @@ function visualizeGraph(data) {
             dominant-baseline: middle;
             text-anchor: middle;
             fill: black !important;
+        }
+        .mermaid .edgePath path {
+            stroke: #333 !important;
         }
     `;
     document.head.appendChild(style);
