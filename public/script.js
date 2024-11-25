@@ -246,11 +246,11 @@ function visualizeGraph(data) {
     // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes with single rectangle syntax and text wrapping
+    // Add nodes with proper syntax for single rectangles and better text wrapping
     data.nodes.forEach(node => {
-        const wrappedLabel = wrapText(node.label, 12);
-        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`; // Removed the quotes - this gives single rectangles
-        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
+        const wrappedLabel = wrapText(node.label, 10); // Reduced character count for better wrapping
+        mermaidCode += `    ${node.id}((${wrappedLabel}))\n`; // Using (( )) syntax for single shape
+        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px,width:120px,height:60px\n`;
     });
     
     // Add connections
@@ -383,26 +383,16 @@ function wrapText(text, maxCharsPerLine) {
     let currentLength = 0;
 
     words.forEach(word => {
-        // If this word would make the line too long
-        if (currentLength + word.length > maxCharsPerLine) {
-            // If the current line has words, add it to lines
-            if (currentLine.length > 0) {
-                lines.push(currentLine.join(' '));
-                currentLine = [word];
-                currentLength = word.length;
-            } else {
-                // If the word itself is longer than maxCharsPerLine
-                lines.push(word);
-                currentLine = [];
-                currentLength = 0;
-            }
+        if (currentLength + word.length + 1 > maxCharsPerLine && currentLine.length > 0) {
+            lines.push(currentLine.join(' '));
+            currentLine = [word];
+            currentLength = word.length;
         } else {
             currentLine.push(word);
             currentLength += word.length + (currentLine.length > 0 ? 1 : 0);
         }
     });
     
-    // Add any remaining line
     if (currentLine.length > 0) {
         lines.push(currentLine.join(' '));
     }
