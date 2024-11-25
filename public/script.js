@@ -25,44 +25,46 @@ const sessionDropdown = document.querySelector('.dropdown:nth-child(2) .dropdown
 const createBtn = document.getElementById('createBtn');
 
 // Load existing clients
-async function loadClients() {
-    const ref = database.ref('conceptualizations');
-    const snapshot = await onValue(ref);
-    const clients = snapshot.val() || {};
-    
-    // Clear existing options except "New"
-    while (clientDropdown.children.length > 1) {
-        clientDropdown.removeChild(clientDropdown.lastChild);
-    }
-    
-    // Add client options
-    Object.keys(clients).forEach(clientId => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.textContent = clientId;
-        a.onclick = () => loadSessions(clientId);
-        clientDropdown.appendChild(a);
+function loadClients() {
+    const dbRef = ref(database, 'conceptualizations');
+    onValue(dbRef, (snapshot) => {
+        const clients = snapshot.val() || {};
+        
+        // Clear existing options except "New"
+        while (clientDropdown.children.length > 1) {
+            clientDropdown.removeChild(clientDropdown.lastChild);
+        }
+        
+        // Add client options
+        Object.keys(clients).forEach(clientId => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = clientId;
+            a.onclick = () => loadSessions(clientId);
+            clientDropdown.appendChild(a);
+        });
     });
 }
 
 // Load sessions for selected client
-async function loadSessions(clientId) {
-    const ref = database.ref(`conceptualizations/${clientId}/sessions`);
-    const snapshot = await onValue(ref);
-    const sessions = snapshot.val() || {};
-    
-    // Clear existing options except "New"
-    while (sessionDropdown.children.length > 1) {
-        sessionDropdown.removeChild(sessionDropdown.lastChild);
-    }
-    
-    // Add session options
-    Object.keys(sessions).forEach(sessionNum => {
-        const a = document.createElement('a');
-        a.href = '#';
-        a.textContent = `Session ${sessionNum}`;
-        a.onclick = () => loadGraph(clientId, sessionNum);
-        sessionDropdown.appendChild(a);
+function loadSessions(clientId) {
+    const dbRef = ref(database, `conceptualizations/${clientId}/sessions`);
+    onValue(dbRef, (snapshot) => {
+        const sessions = snapshot.val() || {};
+        
+        // Clear existing options except "New"
+        while (sessionDropdown.children.length > 1) {
+            sessionDropdown.removeChild(sessionDropdown.lastChild);
+        }
+        
+        // Add session options
+        Object.keys(sessions).forEach(sessionNum => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = `Session ${sessionNum}`;
+            a.onclick = () => loadGraph(clientId, sessionNum);
+            sessionDropdown.appendChild(a);
+        });
     });
 }
 
@@ -158,3 +160,45 @@ function visualizeGraph(data) {
 
 // Load initial data
 loadClients();
+
+// Add missing utility functions
+function getCategoryColor(category) {
+    const colors = {
+        'Attentional processes': '#FF6B6B',
+        'Cognitive sphere': '#4ECDC4',
+        'Affective sphere': '#45B7D1',
+        'Selfing': '#96CEB4',
+        'Motivation': '#FFEEAD',
+        'Overt behavior': '#D4A5A5',
+        'Biophysiological context': '#9FA8DA',
+        'Situational context': '#FFD93D',
+        'Personal history': '#95A5A6',
+        'Broader socio-cultural and economical context': '#BDC3C7'
+    };
+    return colors[category] || '#ddd';
+}
+
+function wrap(text, width) {
+    text.each(function() {
+        let text = d3.select(this),
+            words = text.text().split(/\s+/).reverse(),
+            word,
+            line = [],
+            lineNumber = 0,
+            lineHeight = 1.1, // ems
+            y = text.attr("y"),
+            dy = parseFloat(text.attr("dy")) || 0,
+            tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+            
+        while (word = words.pop()) {
+            line.push(word);
+            tspan.text(line.join(" "));
+            if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(" "));
+                line = [word];
+                tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", ++lineNumber * lineHeight + dy + "em").text(word);
+            }
+        }
+    });
+}
