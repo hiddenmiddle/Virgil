@@ -1,4 +1,4 @@
-from firebase_functions import https_fn
+from firebase_functions import https_fn, options
 from firebase_admin import initialize_app, db
 from openai import OpenAI
 import json
@@ -24,10 +24,9 @@ def create_pbt_conceptualization(req: https_fn.Request):
             return {"success": False, "error": "Missing required parameters"}
 
         try:
-            # Get API key from Firebase config
+            # Get API key from environment
             openai_client = OpenAI(
-                api_key=os.environ.get('OPENAI_API_KEY', 
-                                     functions.config().get('openai', {}).get('apikey'))
+                api_key=options.get('openai.apikey')
             )
             print("OpenAI client initialized")  # Debug log
         except Exception as e:
