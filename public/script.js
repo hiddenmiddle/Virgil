@@ -176,7 +176,7 @@ function visualizeGraph(data) {
     // Create wrapper div for the diagram
     const wrapperDiv = document.createElement('div');
     wrapperDiv.style.width = '100%';
-    wrapperDiv.style.height = '80vh'; // 80% of viewport height
+    wrapperDiv.style.height = '80vh';
     wrapperDiv.style.overflow = 'hidden';
     wrapperDiv.style.position = 'relative';
     container.appendChild(wrapperDiv);
@@ -185,23 +185,8 @@ function visualizeGraph(data) {
     mermaidDiv.className = 'mermaid';
     wrapperDiv.appendChild(mermaidDiv);
     
-    let mermaidCode = `---
-    title: Process-Based Therapy Analysis
-    ---
-    flowchart LR
-    %% Configuration
-    graph TD
-    %%{
-        init: {
-            "flowchart": {
-                "nodeSpacing": 80,
-                "rankSpacing": 100,
-                "curve": "basis",
-                "htmlLabels": true,
-                "fontSize": 14
-            }
-        }
-    }%%\n`;
+    // Start with flowchart definition
+    let mermaidCode = `flowchart LR\n`;
     
     // Define styles for categories
     const styles = {
@@ -218,13 +203,12 @@ function visualizeGraph(data) {
     };
     
     // Add legend as a subgraph on the left
-    mermaidCode += '\n    subgraph Legend\n    direction TB\n'; // TB = top to bottom
+    mermaidCode += '\n    subgraph Legend\n        direction TB\n'; // TB = top to bottom
     Object.entries(styles).forEach(([category, style], index) => {
         mermaidCode += `        leg${index}["${category}"]\n`;
         mermaidCode += `        style leg${index} ${style}\n`;
         if (index < Object.entries(styles).length - 1) {
-            mermaidCode += `        leg${index} --> leg${index + 1}\n`;
-            mermaidCode += `        linkStyle ${index} stroke:none\n`; // Hide legend connectors
+            mermaidCode += `        leg${index} --- leg${index + 1}\n`; // Using --- for legend connections
         }
     });
     mermaidCode += '    end\n\n';
@@ -236,32 +220,31 @@ function visualizeGraph(data) {
     });
     
     // Add connections
-    const linkStartIndex = Object.entries(styles).length - 1; // Account for legend links
     data.links.forEach((link, index) => {
         if (link.bidirectional) {
             mermaidCode += `    ${link.source} <--> ${link.target}\n`;
         } else {
             mermaidCode += `    ${link.source} --> ${link.target}\n`;
         }
-    });
-
-    // Add link styles
-    data.links.forEach((link, index) => {
-        mermaidCode += `    linkStyle ${index + linkStartIndex} stroke-width:${link.importance}px\n`;
+        // Add link style right after each link
+        mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
     
     // Set content
     mermaidDiv.textContent = mermaidCode;
     
-    // Configure and initialize Mermaid
+    // Configure Mermaid
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
-        securityLevel: 'loose', // Required for zooming/panning
+        securityLevel: 'loose',
         flowchart: {
             useMaxWidth: true,
             htmlLabels: true,
-            curve: 'basis'
+            curve: 'basis',
+            nodeSpacing: 80,
+            rankSpacing: 100,
+            fontSize: 14
         }
     });
 
@@ -286,13 +269,11 @@ function visualizeGraph(data) {
         const svg = wrapperDiv.querySelector('svg');
         if (!svg) return;
 
-        // Add zoom/pan functionality
         let zoom = 1;
         const zoomSpeed = 0.1;
         let isDragging = false;
         let startX, startY, translateX = 0, translateY = 0;
 
-        // Zoom with mouse wheel
         wrapperDiv.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -300,9 +281,8 @@ function visualizeGraph(data) {
             updateTransform();
         });
 
-        // Pan with right mouse button
         wrapperDiv.addEventListener('mousedown', (e) => {
-            if (e.button === 2) { // Right mouse button
+            if (e.button === 2) {
                 e.preventDefault();
                 isDragging = true;
                 startX = e.clientX - translateX;
@@ -323,7 +303,7 @@ function visualizeGraph(data) {
         });
 
         wrapperDiv.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); // Prevent context menu
+            e.preventDefault();
         });
 
         function updateTransform() {
