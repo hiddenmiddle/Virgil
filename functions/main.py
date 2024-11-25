@@ -9,7 +9,7 @@ import os
 initialize_app()
 
 @https_fn.on_call()
-def create_pbt_conceptualization(req: https_fn.Request) -> https_fn.Response:
+def create_pbt_conceptualization(req: https_fn.Request):
     """Create PBT conceptualization and store in Firebase."""
     try:
         # Get data from request
@@ -21,17 +21,18 @@ def create_pbt_conceptualization(req: https_fn.Request) -> https_fn.Response:
         print(f"Received request: client={client_id}, session={session_number}")  # Debug log
 
         if not all([conversation, client_id, session_number]):
-            raise ValueError("Missing required parameters")
+            return {"success": False, "error": "Missing required parameters"}
 
         try:
-            # Initialize OpenAI client inside the function
+            # Get API key from Firebase config
             openai_client = OpenAI(
-                api_key=os.environ.get('OPENAI_API_KEY')
+                api_key=os.environ.get('OPENAI_API_KEY', 
+                                     functions.config().get('openai', {}).get('apikey'))
             )
             print("OpenAI client initialized")  # Debug log
         except Exception as e:
             print(f"OpenAI initialization error: {str(e)}")  # Debug log
-            raise
+            return {"success": False, "error": str(e)}
 
         try:
             # Create OpenAI request
@@ -63,7 +64,7 @@ def create_pbt_conceptualization(req: https_fn.Request) -> https_fn.Response:
             print("OpenAI response received")  # Debug log
         except Exception as e:
             print(f"OpenAI request error: {str(e)}")  # Debug log
-            raise
+            return {"success": False, "error": str(e)}
 
         # Parse the response
         analysis_result = json.loads(response.choices[0].message.content)
@@ -80,24 +81,10 @@ def create_pbt_conceptualization(req: https_fn.Request) -> https_fn.Response:
             print("Data written to database")  # Debug log
         except Exception as e:
             print(f"Database write error: {str(e)}")  # Debug log
-            raise
+            return {"success": False, "error": str(e)}
 
-        return https_fn.Response(
-            json.dumps({
-                'success': True,
-                'data': analysis_result
-            }),
-            status=200,
-            content_type='application/json'
-        )
+        return {"success": True, "data": analysis_result}
 
     except Exception as e:
         print(f"Function error: {str(e)}")  # Debug log
-        return https_fn.Response(
-            json.dumps({
-                'success': False,
-                'error': str(e)
-            }),
-            status=500,
-            content_type='application/json'
-        )
+        return {"success": False, "error": str(e)}
