@@ -200,33 +200,29 @@ function visualizeGraph(data) {
         'Социокультурный и экономический контекст': 'fill:#BDC3C7'
     };
     
-    // Add legend as a subgraph with correct syntax
+    // Add legend as a subgraph without connections
     mermaidCode += '\n    subgraph Легенда\n        direction TB\n';
+    
     Object.entries(styles).forEach(([category, style], index) => {
         mermaidCode += `        leg${index}["${category}"]\n`;
         mermaidCode += `        style leg${index} ${style},font-size:12px\n`;
-        if (index < Object.entries(styles).length - 1) {
-            mermaidCode += `        leg${index} --- leg${index + 1}\n`;
-            mermaidCode += `        linkStyle ${index} stroke:none\n`;
-        }
     });
     mermaidCode += '    end\n\n';
     
-    // Add nodes with increased spacing from legend
+    // Add nodes
     data.nodes.forEach(node => {
         mermaidCode += `    ${node.id}["${node.label}"]\n`;
         mermaidCode += `    style ${node.id} ${styles[getCategoryInRussian(node.category)]},font-size:14px\n`;
     });
     
     // Add connections
-    const linkStartIndex = Object.entries(styles).length;
     data.links.forEach((link, index) => {
         if (link.bidirectional) {
             mermaidCode += `    ${link.source} <--> ${link.target}\n`;
         } else {
             mermaidCode += `    ${link.source} --> ${link.target}\n`;
         }
-        mermaidCode += `    linkStyle ${index + linkStartIndex} stroke-width:${link.importance}px\n`;
+        mermaidCode += `    linkStyle ${index} stroke-width:${link.importance}px\n`;
     });
     
     // Set content
