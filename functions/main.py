@@ -30,7 +30,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
         try:
             # Initialize OpenAI client with the parameter value
             openai_client = OpenAI(
-                api_key=OPENAI_API_KEY.value()
+                api_key=OPENAI_API_KEY.value
             )
             print("OpenAI client initialized")
         except Exception as e:
