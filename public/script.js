@@ -200,8 +200,8 @@ function visualizeGraph(data) {
         'Социокультурный и экономический контекст': 'fill:#BDC3C7'
     };
     
-    // Add legend as a subgraph with explicit positioning
-    mermaidCode += '\n    subgraph Legend[""]\n        direction TB\n';
+    // Add legend as a subgraph with correct syntax
+    mermaidCode += '\n    subgraph Легенда\n        direction TB\n';
     Object.entries(styles).forEach(([category, style], index) => {
         mermaidCode += `        leg${index}["${category}"]\n`;
         mermaidCode += `        style leg${index} ${style},font-size:12px\n`;
@@ -248,7 +248,7 @@ function visualizeGraph(data) {
         }
     });
 
-    // Add CSS for better initial scaling and positioning
+    // Update CSS for legend positioning
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
@@ -261,8 +261,8 @@ function visualizeGraph(data) {
             height: 100% !important;
             transform-origin: 50% 50%;
         }
-        #Legend {
-            transform: translateX(-50px);  /* Move legend more to the left */
+        .Легенда {
+            transform: translateX(-50px);
         }
     `;
     document.head.appendChild(style);
