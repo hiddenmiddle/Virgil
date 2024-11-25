@@ -234,14 +234,14 @@ function visualizeGraph(data) {
     mermaidDiv.style.overflow = 'hidden';
     wrapperDiv.appendChild(mermaidDiv);
 
-    // Generate mermaid code (without legend)
+    // Generate mermaid code
     let mermaidCode = `flowchart LR\n`;
     
-    // Add nodes
+    // Add nodes with simplified styling
     data.nodes.forEach(node => {
-        const wrappedLabel = wrapText(node.label, 15); // Adjust character count as needed
-        mermaidCode += `    ${node.id}["${wrappedLabel}"]\n`;
-        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},font-size:14px\n`;
+        const wrappedLabel = wrapText(node.label, 15);
+        mermaidCode += `    ${node.id}[${wrappedLabel}]\n`;
+        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px,width:120px\n`;
     });
     
     // Add connections
@@ -257,7 +257,7 @@ function visualizeGraph(data) {
     // Set mermaid content
     mermaidDiv.textContent = mermaidCode;
     
-    // Configure mermaid
+    // Configure mermaid with adjusted settings
     mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
@@ -266,13 +266,14 @@ function visualizeGraph(data) {
             useMaxWidth: true,
             htmlLabels: true,
             curve: 'basis',
-            nodeSpacing: 40,
-            rankSpacing: 60,
-            diagramPadding: 8
+            nodeSpacing: 30,  // Reduced spacing
+            rankSpacing: 50,  // Reduced spacing
+            diagramPadding: 8,
+            defaultRenderer: 'dagre'
         }
     });
 
-    // Add CSS for the graph
+    // Update CSS for better node appearance
     const style = document.createElement('style');
     style.textContent = `
         .mermaid {
@@ -288,17 +289,23 @@ function visualizeGraph(data) {
         .mermaid .node rect {
             rx: 5px;
             ry: 5px;
-            width: 120px;
-            height: 60px;
+            width: 120px !important;
+            height: auto;
+            min-height: 60px;
         }
         .mermaid .node text {
             dominant-baseline: middle;
             text-anchor: middle;
+            fill: black !important;
+            font-weight: normal;
+        }
+        .mermaid .edgeLabel {
+            background-color: none !important;
         }
     `;
     document.head.appendChild(style);
 
-    // Helper function to wrap text
+    // Helper function for better text wrapping
     function wrapText(text, maxCharsPerLine) {
         const words = text.split(' ');
         let lines = [];

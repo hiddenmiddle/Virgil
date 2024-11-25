@@ -47,7 +47,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
             
             # Get OpenAI analysis
             response = openai_client.chat.completions.create(
-                model="gpt-4o",
+                model="gpt-o1-preview",
                 response_format={ "type": "json_object" },
                 messages=[
                     {"role": "system", "content": """You are an expert in process-based therapy analysis. Analyze the conversation and identify elements that fit into these categories:
@@ -62,7 +62,7 @@ def create_pbt_conceptualization(req: https_fn.Request):
                         - Personal history
                         - Broader socio-cultural and economical context
                         
-                        For each identified element, create a node. Then identify connections between these nodes, 
+                        For each identified element, create a node. Use the language of the conversation to label the node. Then identify connections between these nodes, 
                         including the strength of connection (1-5, where 5 is strongest) and whether it's bidirectional.
                         Each node should have a unique ID and be categorized into one of the above categories. You should optimize the nuber of nodes and edges for clarity of conceptualization but also strive not to lose any important details.
                         
