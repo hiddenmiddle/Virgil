@@ -28,9 +28,9 @@ def create_pbt_conceptualization(req: https_fn.Request):
 
         try:
             # Get API key from environment
-            api_key = os.environ.get('OPENAI_API_KEY')
+            api_key = os.environ.get('openai.apikey')
             if not api_key:
-                raise ValueError("OPENAI_API_KEY environment variable is not set")
+                raise ValueError("openai.apikey environment variable is not set")
             
             openai_client = OpenAI(
                 api_key=api_key
