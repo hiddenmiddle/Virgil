@@ -64,8 +64,11 @@ def create_pbt_conceptualization(req: https_fn.Request):
                         
                         For each identified element, create a node. Use the language of the conversation to label the node. Then identify connections between these nodes, 
                         including the strength of connection (1-5, where 5 is strongest) and whether it's bidirectional.
-                        Each node should have a unique ID and be categorized into one of the above categories. You should optimize the nuber of nodes and edges for clarity of conceptualization but also strive not to lose any important details.
+                        Each node should have a unique ID and be categorized into one of the above categories. You should optimize the nuber of nodes and edges for clarity of conceptualization but also strive not to lose any important details. 
                         
+                        Every node or branch of nodes should be at least once connected to another one. 
+                        Create exclusively nodes that are components of the client's experience and only ones that contribute to his problems.
+                     
                         Return the analysis in this JSON structure:
                         {
                             "nodes": [

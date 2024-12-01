@@ -244,35 +244,38 @@ function visualizeGraph(data) {
     graphContainer.appendChild(mermaidDiv);
 
     // Generate mermaid code
-    let mermaidCode = `flowchart LR\n`;
+    let mermaidCode = `graph LR\n`;
     
-    // Add nodes with clean syntax and proper text wrapping
+    // Add nodes with proper text wrapping and single-color styling
     data.nodes.forEach(node => {
-        const wrappedLabel = wrapText(node.label, 10);
-        // Using clean node syntax with <br/> for line breaks
-        const formattedLabel = wrappedLabel.replace(/\n/g, '<br/>');
-        mermaidCode += `    ${node.id}["${formattedLabel}"]\n`;
-        // Add clean styling without stroke
-        mermaidCode += `    style ${node.id} fill:${styles[getCategoryInRussian(node.category)]},stroke:none,color:black,font-size:14px\n`;
+        const wrappedLabel = wrapText(node.label, 20);
+        const safeLabel = wrappedLabel.replace(/["\\]/g, '\\$&');
+        const formattedLabel = safeLabel.replace(/\n/g, '<br/>');
+        const category = getCategoryInRussian(node.category);
+        const color = styles[category];
+
+        // Use custom class for node styling without semicolon
+        mermaidCode += `    ${node.id}["${formattedLabel}"]:::${node.id}_class\n`;
+        mermaidCode += `    classDef ${node.id}_class fill:${color},stroke:none,color:black,font-size:14px\n`;
     });
-    
-    // Add connections with thicker lines for better visibility
+
+    // Add connections with thicker lines
     data.links.forEach((link, index) => {
-        if (link.bidirectional) {
-            mermaidCode += `    ${link.source} <==> ${link.target}\n`;
-        } else {
-            mermaidCode += `    ${link.source} ==> ${link.target}\n`;
-        }
-        // Thicker lines for connections
-        mermaidCode += `    linkStyle ${index} stroke-width:2px\n`;
+        const arrow = link.bidirectional ? "<-->" : "-->";
+        mermaidCode += `    ${link.source} ${arrow} ${link.target}\n`;
     });
 
     mermaidDiv.textContent = mermaidCode;
 
-    // Configure mermaid
+    // Configure mermaid with base theme
     mermaid.initialize({
         startOnLoad: true,
-        theme: 'default',
+        theme: 'base',
+        themeVariables: {
+            primaryColor: '#ffffff',
+            primaryTextColor: '#000000',
+            lineColor: '#333333'
+        },
         securityLevel: 'loose',
         flowchart: {
             useMaxWidth: true,
@@ -284,12 +287,9 @@ function visualizeGraph(data) {
         }
     });
 
-    // Add CSS
+    // Update CSS styles
     const style = document.createElement('style');
     style.textContent = `
-        #graph-container {
-            background-color: white;
-        }
         .mermaid {
             background-color: white;
         }
@@ -297,19 +297,23 @@ function visualizeGraph(data) {
             max-width: 100%;
             height: auto;
         }
+        .mermaid .label foreignObject {
+            overflow: visible !important;
+            width: auto !important;
+        }
+        .mermaid .label foreignObject div {
+            display: inline-block !important;
+            text-align: center;
+            padding: 4px 8px;
+            white-space: pre-wrap !important;
+        }
         .mermaid .node rect {
             rx: 5px;
             ry: 5px;
-            width: 120px !important;
-            height: 60px !important;
         }
-        .mermaid .node text {
-            dominant-baseline: middle;
-            text-anchor: middle;
+        .mermaid .node text, .mermaid .node span {
             fill: black !important;
-        }
-        .mermaid .edgePath path {
-            stroke: #333 !important;
+            font-size: 14px !important;
         }
     `;
     document.head.appendChild(style);
@@ -382,26 +386,23 @@ function visualizeGraph(data) {
     });
 }
 
-// Improved text wrapping function
+// Updated text wrapping function
 function wrapText(text, maxCharsPerLine) {
     const words = text.split(' ');
     let lines = [];
-    let currentLine = [];
-    let currentLength = 0;
+    let currentLine = '';
 
     words.forEach(word => {
-        if (currentLength + word.length + 1 > maxCharsPerLine && currentLine.length > 0) {
-            lines.push(currentLine.join(' '));
-            currentLine = [word];
-            currentLength = word.length;
+        if ((currentLine + word).length > maxCharsPerLine) {
+            lines.push(currentLine.trim());
+            currentLine = word + ' ';
         } else {
-            currentLine.push(word);
-            currentLength += word.length + (currentLine.length > 0 ? 1 : 0);
+            currentLine += word + ' ';
         }
     });
-    
+
     if (currentLine.length > 0) {
-        lines.push(currentLine.join(' '));
+        lines.push(currentLine.trim());
     }
 
     return lines.join('\n');
